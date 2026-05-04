@@ -1,5 +1,6 @@
 import { BookText, Layers, Volume2 } from 'lucide-react'
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
+import { SpeakTextButton } from './SpeakTextButton'
 import type { WordDefinitionDto } from '../types/dictionary'
 
 type DefinitionCardProps = {
@@ -9,6 +10,11 @@ type DefinitionCardProps = {
 
 export function DefinitionCard({ definition, onAddToAnki }: DefinitionCardProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const definitionTextRef = useRef<HTMLParagraphElement>(null)
+  const readAloudKey = useMemo(
+    () => `${definition.word}\n${definition.primaryDefinition}`,
+    [definition.word, definition.primaryDefinition],
+  )
 
   const playAudio = () => {
     const el = audioRef.current
@@ -66,9 +72,21 @@ export function DefinitionCard({ definition, onAddToAnki }: DefinitionCardProps)
             {definition.partOfSpeech}
           </p>
         ) : null}
-        <p className="text-base leading-relaxed text-slate-700 dark:text-slate-200">
-          {definition.primaryDefinition}
-        </p>
+        <div className="rounded-xl bg-sky-500/[0.12] px-3 py-3 ring-1 ring-sky-500/20 dark:bg-sky-400/10 dark:ring-sky-400/25">
+          <p
+            ref={definitionTextRef}
+            className="select-text text-base leading-relaxed text-slate-700 dark:text-slate-200"
+          >
+            {definition.primaryDefinition}
+          </p>
+          <div className="mt-3 flex justify-start">
+            <SpeakTextButton
+              text={definition.primaryDefinition}
+              resetSignal={readAloudKey}
+              selectionScopeRef={definitionTextRef}
+            />
+          </div>
+        </div>
         {onAddToAnki ? (
           <button
             type="button"

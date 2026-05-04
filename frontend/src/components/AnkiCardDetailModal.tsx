@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Eraser, Mic, Square, Trash2, Volume2, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Eraser, Mic, Square, Trash2, X } from 'lucide-react'
 import { ankiModalPanelStyle } from '../config/ankiModalLayout'
 import {
   extractMediaEmbedsInOrder,
@@ -11,6 +11,7 @@ import {
 } from '../lib/ankiCardLayout'
 import { findApkgMediaUrl } from '../lib/apkgMedia'
 import type { AnkiCard } from '../types/anki'
+import { SpeakTextButton } from './SpeakTextButton'
 
 /** Subset of the Web Speech API (omitted from this project's DOM typings). */
 interface SpeechRecAlternative {
@@ -51,7 +52,7 @@ function listTitle(front: string): string {
   return line || '(empty)'
 }
 
-/** First-line headword for compact list: strips media placeholders; short lines stay whole, long lines use first token. */
+/** First line of the card front for lists and A–Z sort; strips media tags. Full line is shown (CSS truncates in narrow rows). */
 export function baseWordLabel(front: string): string {
   const raw = front.split(/\r?\n/)[0] ?? ''
   const cleaned = raw
@@ -59,9 +60,7 @@ export function baseWordLabel(front: string): string {
     .replace(/\s+/g, ' ')
     .trim()
   if (!cleaned) return '(empty)'
-  const parts = cleaned.split(/\s+/).filter(Boolean)
-  const use = parts.length <= 3 ? cleaned : (parts[0] ?? cleaned)
-  return use.length > 72 ? `${use.slice(0, 69)}…` : use
+  return cleaned
 }
 
 function DeckAudio({
@@ -115,112 +114,6 @@ function DeckImage({ filename, mediaUrls }: { filename: string; mediaUrls: Reado
       className="mx-auto max-h-[min(50vh,29rem)] max-w-full rounded-xl object-contain"
       loading="lazy"
     />
-  )
-}
-
-function supportsSpeechSynthesis(): boolean {
-  return typeof window !== 'undefined' && typeof window.speechSynthesis !== 'undefined'
-}
-
-function SpeakTextButton({
-  text,
-  resetSignal,
-  selectionScopeRef,
-}: {
-  text: string
-  resetSignal: number
-  selectionScopeRef?: { current: HTMLElement | null }
-}) {
-  const supported = useMemo(() => supportsSpeechSynthesis(), [])
-  const [speaking, setSpeaking] = useState(false)
-  const [selectedText, setSelectedText] = useState('')
-
-  useEffect(() => {
-    if (!supported) return
-    window.speechSynthesis.cancel()
-    setSpeaking(false)
-    setSelectedText('')
-  }, [resetSignal, supported])
-
-  useEffect(() => {
-    if (!supported) return
-    return () => {
-      window.speechSynthesis.cancel()
-    }
-  }, [supported])
-
-  useEffect(() => {
-    if (!supported || !selectionScopeRef?.current) return
-    const updateSelection = () => {
-      const scope = selectionScopeRef.current
-      if (!scope) return
-      const sel = window.getSelection()
-      if (!sel || sel.rangeCount === 0) {
-        setSelectedText('')
-        return
-      }
-      const anchor = sel.anchorNode
-      const focus = sel.focusNode
-      const inScope = Boolean(
-        anchor &&
-          focus &&
-          (scope.contains(anchor.nodeType === Node.TEXT_NODE ? anchor.parentNode : anchor) ||
-            scope.contains(focus.nodeType === Node.TEXT_NODE ? focus.parentNode : focus)),
-      )
-      if (!inScope) {
-        setSelectedText('')
-        return
-      }
-      setSelectedText(sel.toString().trim())
-    }
-    document.addEventListener('selectionchange', updateSelection)
-    return () => document.removeEventListener('selectionchange', updateSelection)
-  }, [supported, selectionScopeRef])
-
-  if (!supported || !text.trim()) return null
-
-  const onToggleSpeak = () => {
-    const content = selectedText || text
-    if (speaking) {
-      window.speechSynthesis.cancel()
-      setSpeaking(false)
-      return
-    }
-    const utterance = new SpeechSynthesisUtterance(content)
-    utterance.lang = 'en-US'
-    utterance.rate = 1
-    utterance.pitch = 1
-    utterance.onend = () => setSpeaking(false)
-    utterance.onerror = () => setSpeaking(false)
-    window.speechSynthesis.cancel()
-    window.speechSynthesis.speak(utterance)
-    setSpeaking(true)
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={onToggleSpeak}
-      className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition ${
-        speaking
-          ? 'bg-rose-600 text-white shadow-sm hover:bg-rose-500'
-          : 'border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
-      }`}
-      aria-pressed={speaking}
-      aria-label={speaking ? 'Stop reading text' : 'Read text aloud'}
-    >
-      {speaking ? (
-        <>
-          <Square className="size-4 shrink-0 fill-current" aria-hidden />
-          Stop
-        </>
-      ) : (
-        <>
-          <Volume2 className="size-4 shrink-0" aria-hidden />
-          {selectedText ? 'Read selection' : 'Read text'}
-        </>
-      )}
-    </button>
   )
 }
 
@@ -438,6 +331,8 @@ export function AnkiCardDetailModal({
   const [part, setPart] = useState<1 | 2>(1)
   const openPart2Ref = useRef<HTMLButtonElement>(null)
   const backToPart1Ref = useRef<HTMLButtonElement>(null)
+  const part1WordTextRef = useRef<HTMLParagraphElement>(null)
+  const definitionTextRef = useRef<HTMLParagraphElement>(null)
   const translationTextRef = useRef<HTMLParagraphElement>(null)
   const examplesTextRef = useRef<HTMLParagraphElement>(null)
 
@@ -498,7 +393,6 @@ export function AnkiCardDetailModal({
       exampleAudios.length > 0 ||
       extraPictures.length > 0,
   )
-
   useEffect(() => {
     setPart(1)
   }, [cardIndex, card.front, card.back])
@@ -557,9 +451,21 @@ export function AnkiCardDetailModal({
             <section aria-label="Word and media">
               <div className="rounded-2xl border border-slate-200 bg-slate-100 px-6 py-8 dark:border-slate-800 dark:bg-slate-950 sm:px-9 sm:py-10">
                 {wordLine ? (
-                  <p className="text-center text-[1.65rem] font-semibold leading-tight tracking-tight text-indigo-600 dark:text-indigo-400 sm:text-[2.05rem]">
-                    {wordLine}
-                  </p>
+                  <>
+                    <p
+                      ref={part1WordTextRef}
+                      className="select-text text-center text-[1.65rem] font-semibold leading-tight tracking-tight text-indigo-600 dark:text-indigo-400 sm:text-[2.05rem]"
+                    >
+                      {wordLine}
+                    </p>
+                    <div className="mt-4 flex justify-center">
+                      <SpeakTextButton
+                        text={wordLine}
+                        resetSignal={cardIndex}
+                        selectionScopeRef={part1WordTextRef}
+                      />
+                    </div>
+                  </>
                 ) : null}
                 {wordLine && (wordAudio || wordPicture) ? <PreviewDivider show /> : null}
                 {wordAudio || wordPicture ? (
@@ -596,9 +502,21 @@ export function AnkiCardDetailModal({
                 {part2BackParsed.definition || definitionAudio ? (
                   <div className="mt-4 text-left">
                     {part2BackParsed.definition ? (
-                      <p className="text-[1.2rem] font-medium leading-snug text-emerald-700 dark:text-emerald-400 sm:text-[1.4rem]">
-                        {part2BackParsed.definition}
-                      </p>
+                      <>
+                        <p
+                          ref={definitionTextRef}
+                          className="select-text text-[1.2rem] font-medium leading-snug text-emerald-700 dark:text-emerald-400 sm:text-[1.4rem]"
+                        >
+                          {part2BackParsed.definition}
+                        </p>
+                        <div className="mt-3 flex justify-center sm:justify-start">
+                          <SpeakTextButton
+                            text={part2BackParsed.definition}
+                            resetSignal={cardIndex}
+                            selectionScopeRef={definitionTextRef}
+                          />
+                        </div>
+                      </>
                     ) : null}
                     {definitionAudio ? (
                       <div className="mt-5 flex justify-center sm:justify-start">
