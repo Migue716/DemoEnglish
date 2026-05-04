@@ -51,7 +51,7 @@ export const CardBackContent = memo(function CardBackContent({ text, mediaUrls, 
           if (src) {
             return (
               <span key={i} className="my-1 block max-w-md">
-                <audio controls className="h-9 w-full" src={src} preload="metadata" />
+                <audio controls className="h-9 w-full" src={src} preload="auto" playsInline />
               </span>
             )
           }

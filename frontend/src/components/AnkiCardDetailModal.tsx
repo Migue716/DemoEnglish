@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Trash2, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowLeft, ArrowRight, Eraser, Mic, Square, Trash2, X } from 'lucide-react'
 import { ankiModalPanelStyle } from '../config/ankiModalLayout'
 import {
   extractMediaEmbedsInOrder,
@@ -11,6 +11,39 @@ import {
 } from '../lib/ankiCardLayout'
 import { findApkgMediaUrl } from '../lib/apkgMedia'
 import type { AnkiCard } from '../types/anki'
+
+/** Subset of the Web Speech API (omitted from this project's DOM typings). */
+interface SpeechRecAlternative {
+  transcript: string
+}
+interface SpeechRecResult {
+  readonly isFinal: boolean
+  readonly 0: SpeechRecAlternative
+}
+interface SpeechRecResultList {
+  readonly length: number
+  [index: number]: SpeechRecResult
+}
+interface SpeechRecResultEvent extends Event {
+  readonly resultIndex: number
+  readonly results: SpeechRecResultList
+}
+interface SpeechRecErrorEvent extends Event {
+  readonly error: string
+  readonly message: string
+}
+interface WebSpeechRecognition extends EventTarget {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  start(): void
+  stop(): void
+  abort(): void
+  onresult: ((this: WebSpeechRecognition, ev: SpeechRecResultEvent) => void) | null
+  onerror: ((this: WebSpeechRecognition, ev: SpeechRecErrorEvent) => void) | null
+  onend: ((this: WebSpeechRecognition, ev: Event) => void) | null
+}
+type WebSpeechRecognitionCtor = new () => WebSpeechRecognition
 
 function listTitle(front: string): string {
   const line = front.split(/\r?\n/)[0]?.trim() ?? front
@@ -39,6 +72,16 @@ function DeckAudio({
   mediaUrls: ReadonlyMap<string, string>
 }) {
   const src = findApkgMediaUrl(filename, mediaUrls)
+  const audioRef = useRef<HTMLAudioElement>(null)
+
+  /** `preload="metadata"` often leaves almost no decoded audio buffered; play() then starts late and clips feel like they skip the first ~0.3–1s. */
+  useEffect(() => {
+    if (!src) return
+    const el = audioRef.current
+    if (!el) return
+    el.load()
+  }, [src])
+
   if (!src) {
     return (
       <p className="text-center text-xs text-slate-500 dark:text-slate-400">
@@ -49,10 +92,12 @@ function DeckAudio({
   return (
     <div className="mx-auto flex w-full max-w-md justify-center">
       <audio
+        ref={audioRef}
         controls
+        playsInline
         className="h-10 w-full rounded-xl bg-slate-200/80 dark:bg-slate-800/80"
         src={src}
-        preload="metadata"
+        preload="auto"
       />
     </div>
   )
@@ -87,6 +132,191 @@ type AnkiCardDetailModalProps = {
 function PreviewDivider({ show }: { show: boolean }) {
   if (!show) return null
   return <hr className="mx-auto my-7 w-14 border-t border-slate-300 dark:border-slate-600 sm:my-8" />
+}
+
+function getSpeechRecognitionCtor(): WebSpeechRecognitionCtor | null {
+  if (typeof window === 'undefined') return null
+  const w = window as typeof window & {
+    SpeechRecognition?: WebSpeechRecognitionCtor
+    webkitSpeechRecognition?: WebSpeechRecognitionCtor
+  }
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null
+}
+
+/** Browser speech-to-text (Chrome/Edge; limited elsewhere). Requires HTTPS or localhost. */
+function Part2Dictation({ resetSignal }: { resetSignal: number }) {
+  const supported = useMemo(() => getSpeechRecognitionCtor() !== null, [])
+  const [text, setText] = useState('')
+  const [listening, setListening] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const accumulatedRef = useRef('')
+  const recRef = useRef<WebSpeechRecognition | null>(null)
+  const userWantsListenRef = useRef(false)
+
+  const stopListening = useCallback(() => {
+    userWantsListenRef.current = false
+    try {
+      recRef.current?.stop()
+    } catch {
+      /* already stopped */
+    }
+    recRef.current = null
+    setListening(false)
+  }, [])
+
+  useEffect(() => {
+    accumulatedRef.current = ''
+    setText('')
+    setError(null)
+    userWantsListenRef.current = false
+    try {
+      recRef.current?.abort()
+    } catch {
+      /* noop */
+    }
+    recRef.current = null
+    setListening(false)
+  }, [resetSignal])
+
+  useEffect(() => {
+    return () => {
+      userWantsListenRef.current = false
+      try {
+        recRef.current?.abort()
+      } catch {
+        /* noop */
+      }
+      recRef.current = null
+    }
+  }, [])
+
+  const startListening = useCallback(() => {
+    const Ctor = getSpeechRecognitionCtor()
+    if (!Ctor) return
+    setError(null)
+    accumulatedRef.current = text.trimEnd() ? `${text.trimEnd()} ` : ''
+    const rec = new Ctor()
+    rec.continuous = true
+    rec.interimResults = true
+    rec.lang = 'en-US'
+    rec.onresult = (e: SpeechRecResultEvent) => {
+      let interim = ''
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i]
+        const piece = r[0]?.transcript ?? ''
+        if (r.isFinal) accumulatedRef.current += piece
+        else interim += piece
+      }
+      setText(accumulatedRef.current + interim)
+    }
+    rec.onerror = (ev: SpeechRecErrorEvent) => {
+      if (ev.error === 'aborted') return
+      if (ev.error === 'no-speech') return
+      userWantsListenRef.current = false
+      if (ev.error === 'not-allowed') setError('Microphone access denied. Allow the site to use the mic.')
+      else setError(ev.message || ev.error)
+      recRef.current = null
+      setListening(false)
+    }
+    rec.onend = () => {
+      if (!userWantsListenRef.current) {
+        recRef.current = null
+        setListening(false)
+        return
+      }
+      try {
+        rec.start()
+      } catch {
+        recRef.current = null
+        setListening(false)
+      }
+    }
+    userWantsListenRef.current = true
+    recRef.current = rec
+    try {
+      rec.start()
+      setListening(true)
+    } catch (err) {
+      userWantsListenRef.current = false
+      recRef.current = null
+      setError(err instanceof Error ? err.message : 'Could not start microphone.')
+    }
+  }, [text])
+
+  const toggleListen = () => {
+    if (listening) stopListening()
+    else void startListening()
+  }
+
+  const clearText = () => {
+    accumulatedRef.current = ''
+    setText('')
+    setError(null)
+  }
+
+  if (!supported) {
+    return (
+      <div className="mt-10 rounded-xl border border-dashed border-slate-300 bg-slate-50/80 px-4 py-3 text-center text-sm text-slate-600 dark:border-slate-600 dark:bg-slate-900/40 dark:text-slate-400">
+        Speech-to-text is not available in this browser. Try Chrome or Edge on HTTPS or localhost.
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-10">
+      <p className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        Dictate (English)
+      </p>
+      <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+        <button
+          type="button"
+          onClick={toggleListen}
+          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition ${
+            listening
+              ? 'bg-rose-600 text-white shadow-sm hover:bg-rose-500'
+              : 'border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
+          }`}
+          aria-pressed={listening}
+        >
+          {listening ? (
+            <>
+              <Square className="size-4 shrink-0 fill-current" aria-hidden />
+              Stop
+            </>
+          ) : (
+            <>
+              <Mic className="size-4 shrink-0" aria-hidden />
+              Dictate
+            </>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={clearText}
+          disabled={!text}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+        >
+          <Eraser className="size-4 shrink-0" aria-hidden />
+          Clear
+        </button>
+      </div>
+      {error ? <p className="mt-2 text-center text-sm text-rose-600 dark:text-rose-400 sm:text-left">{error}</p> : null}
+      <label className="mt-3 block">
+        <span className="sr-only">Transcript</span>
+        <textarea
+          value={text}
+          onChange={(e) => {
+            accumulatedRef.current = e.target.value
+            setText(e.target.value)
+          }}
+          rows={4}
+          placeholder="Tap Dictate and speak; your words appear here. You can edit the text."
+          className="w-full resize-y rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
+          spellCheck
+        />
+      </label>
+    </div>
+  )
 }
 
 export function AnkiCardDetailModal({
@@ -305,6 +535,7 @@ export function AnkiCardDetailModal({
                 {!part2HasContent ? (
                   <p className="text-center text-slate-500 dark:text-slate-400">(No extra fields)</p>
                 ) : null}
+                <Part2Dictation resetSignal={cardIndex} />
               </div>
             </section>
           )}
