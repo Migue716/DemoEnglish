@@ -6,8 +6,8 @@ Aplicación web para practicar vocabulario técnico en inglés. El **backend** (
 
 ## Requisitos
 
-- [.NET SDK](https://dotnet.microsoft.com/download) (este repositorio está configurado con **net10.0**, compatible con el SDK 10.x). Si necesitas **.NET 9** explícitamente, cambia `TargetFramework` en cada `.csproj` a `net9.0` y usa el SDK 9 instalado.
-- [Node.js](https://nodejs.org/) 20+ recomendado (para el frontend con Vite).
+- [.NET SDK](https://dotnet.microsoft.com/download) (este repositorio usa **net10.0**). Si necesitas otra versión, ajusta `TargetFramework` en los `.csproj` y el SDK correspondiente.
+- [Node.js](https://nodejs.org/) 20+ recomendado (Vite).
 
 ## Backend (API)
 
@@ -50,6 +50,23 @@ VITE_API_BASE_URL=https://localhost:7282/swagger/index.html
 ```
 
 Las peticiones van a `https://localhost:7282/api/...`. Ejecuta el backend con el perfil **https** para usar el puerto 7282. Si el certificado de desarrollo no es de confianza: `dotnet dev-certs https --trust`.
+
+### Funciones de la UI
+
+- **Diccionario:** búsqueda de palabras y tarjetas de definición con audio remoto cuando la API lo devuelve.
+- **Mazo Anki:** importación de `.apkg` o texto; lista **A–Z** con búsqueda; vista previa por tarjeta en un modal en **dos partes** (palabra + medios / definición, ejemplos y medios adicionales).
+- **Medios del `.apkg`:** los `<audio>` y `<img>` usan *blob URLs* extraídas del paquete; el orden de `[sound:]` y `[img:]` sigue la lógica de `extractMediaEmbedsInOrder` en `frontend/src/lib/ankiCardLayout.ts`.
+- **Dictado (Parte 2):** reconocimiento de voz en el navegador (**Web Speech API**, inglés `en-US`). Funciona mejor en **Chrome** o **Edge**; requiere **HTTPS** o **localhost** y permiso de micrófono. No sustituye el contenido de la tarjeta; es solo práctica de pronunciación en pantalla.
+
+Variables opcionales de entorno (Vite) para el tamaño del modal de tarjeta:
+
+| Variable | Descripción |
+|----------|-------------|
+| `VITE_ANKI_MODAL_MAX_WIDTH` | Ancho máximo del panel (CSS, p. ej. `min(66.15rem, 96vw)`). |
+| `VITE_ANKI_MODAL_MAX_HEIGHT` | Altura máxima (valor interior del `min` con el viewport). |
+| `VITE_ANKI_MODAL_MAX_HEIGHT_VP` | Tope en viewport, p. ej. `92dvh`. |
+
+Definiciones por defecto en `frontend/src/config/ankiModalLayout.ts`.
 
 ### Producción (build estático)
 
