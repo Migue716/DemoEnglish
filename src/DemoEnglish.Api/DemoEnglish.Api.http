@@ -1,0 +1,11 @@
+@DemoEnglish.Api_HostAddress = http://localhost:5183
+
+GET {{DemoEnglish.Api_HostAddress}}/api/dictionary/entries/cache
+Accept: application/json
+
+###
+
+GET {{DemoEnglish.Api_HostAddress}}/api/dictionary/entries/notarealwordxyz123
+Accept: application/json
+
+###
