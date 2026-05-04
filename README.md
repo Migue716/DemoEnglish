@@ -4,6 +4,36 @@ Aplicación web para practicar vocabulario técnico en inglés. El **backend** (
 
 **`.apkg`:** el backend descomprime el ZIP, abre `collection.anki2` / `collection.anki21` con SQLite y lee la tabla `notes` (campo `flds` separado por U+001F). Se usa el **primer campo** como frente y el **resto** como reverso; se eliminan etiquetas HTML de forma básica. Límite por petición: **10.000 notas**; tamaño máximo de subida **10 GiB** (`UploadLimits.MaxMultipartBytes` en Kestrel, `FormOptions`, IIS y `[RequestFormLimits]`). Los mazos con modelos muy personalizados pueden necesitar exportación a texto desde Anki.
 
+## Funcionalidades
+
+### Resumen
+
+| Área | Qué ofrece |
+|------|------------|
+| **Diccionario** | Búsqueda de palabras; definición principal; categoría gramatical; IPA; audio de pronunciación si la API lo devuelve; lectura en voz alta (TTS) con voz y velocidad configurables; añadir la entrada al mazo Anki con un clic. |
+| **Mazo Anki (navegador)** | Importar `.apkg` o texto (`.txt` / `.tsv` / `.csv`); modos **añadir** o **reemplazar** lista; reproducir y mostrar medios incrustados del `.apkg`; exportar `.txt` compatible con Anki; descargar `.txt` de ejemplo; lista **A–Z** con búsqueda; vaciar mazo o quitar tarjetas. |
+| **Estudio (modal)** | Tarjeta en **dos partes** (palabra/medios vs. definición y resto); navegación entre tarjetas; **dictado** con reconocimiento de voz (`en-US`) para practicar pronunciación sin sustituir el contenido de la tarjeta. |
+| **Ajustes** | Voz en inglés y velocidad del **Speech Synthesis** del navegador; preferencias en `localStorage`; lectura en voz alta coherente en diccionario y modal. |
+| **API** | Definiciones agregadas; import/export de mazos (texto y `.apkg`); ejemplo descargable; CORS y Swagger en desarrollo (véase sección Backend). |
+
+### Diccionario (UI)
+
+- Barra de búsqueda y manejo de errores de red o palabra no encontrada.
+- Tarjeta de resultado con **Play** para audio remoto y botón de **read aloud** sobre la definición (respeta selección de texto dentro del párrafo cuando aplica).
+- **Add to Anki list** construye el reverso con IPA y definición principal.
+
+### Mazo Anki (UI)
+
+- **Import file:** `.apkg` (colección SQLite dentro del ZIP) o delimitado por tab/comas; HTML en campos se reduce a texto en backend.
+- Tras importar `.apkg`, los `[sound:]` y `[img:]` se enlazan a medios extraídos; el orden sigue la lógica de `extractMediaEmbedsInOrder` en `frontend/src/lib/ankiCardLayout.ts`.
+- **Export for Anki** genera descarga vía API (UTF-8 con BOM, tab, línea `#separator:tab`).
+- **Sample .txt** enlaza al endpoint de ejemplo del backend.
+
+### Audio, TTS y dictado
+
+- **Ajustes → Read aloud:** elección de voz `en-*` (o todas si no hay inglés) y velocidad 0.5–1.5×.
+- **Dictado (Parte 2 del modal):** Web Speech API; funciona mejor en **Chrome** o **Edge**; requiere **HTTPS** o **localhost** y permiso de micrófono.
+
 ## Requisitos
 
 - [.NET SDK](https://dotnet.microsoft.com/download) (este repositorio usa **net10.0**). Si necesitas otra versión, ajusta `TargetFramework` en los `.csproj` y el SDK correspondiente.
@@ -51,14 +81,9 @@ VITE_API_BASE_URL=https://localhost:7282/swagger/index.html
 
 Las peticiones van a `https://localhost:7282/api/...`. Ejecuta el backend con el perfil **https** para usar el puerto 7282. Si el certificado de desarrollo no es de confianza: `dotnet dev-certs https --trust`.
 
-### Funciones de la UI
+### Tamaño del modal de tarjeta Anki (Vite)
 
-- **Diccionario:** búsqueda de palabras y tarjetas de definición con audio remoto cuando la API lo devuelve.
-- **Mazo Anki:** importación de `.apkg` o texto; lista **A–Z** con búsqueda; vista previa por tarjeta en un modal en **dos partes** (palabra + medios / definición, ejemplos y medios adicionales).
-- **Medios del `.apkg`:** los `<audio>` y `<img>` usan *blob URLs* extraídas del paquete; el orden de `[sound:]` y `[img:]` sigue la lógica de `extractMediaEmbedsInOrder` en `frontend/src/lib/ankiCardLayout.ts`.
-- **Dictado (Parte 2):** reconocimiento de voz en el navegador (**Web Speech API**, inglés `en-US`). Funciona mejor en **Chrome** o **Edge**; requiere **HTTPS** o **localhost** y permiso de micrófono. No sustituye el contenido de la tarjeta; es solo práctica de pronunciación en pantalla.
-
-Variables opcionales de entorno (Vite) para el tamaño del modal de tarjeta:
+Variables opcionales de entorno para el panel del modal:
 
 | Variable | Descripción |
 |----------|-------------|
