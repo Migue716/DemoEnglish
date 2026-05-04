@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Eraser, Mic, Square, Trash2, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Eraser, Mic, Square, Trash2, Volume2, X } from 'lucide-react'
 import { ankiModalPanelStyle } from '../config/ankiModalLayout'
 import {
   extractMediaEmbedsInOrder,
@@ -115,6 +115,112 @@ function DeckImage({ filename, mediaUrls }: { filename: string; mediaUrls: Reado
       className="mx-auto max-h-[min(50vh,29rem)] max-w-full rounded-xl object-contain"
       loading="lazy"
     />
+  )
+}
+
+function supportsSpeechSynthesis(): boolean {
+  return typeof window !== 'undefined' && typeof window.speechSynthesis !== 'undefined'
+}
+
+function SpeakTextButton({
+  text,
+  resetSignal,
+  selectionScopeRef,
+}: {
+  text: string
+  resetSignal: number
+  selectionScopeRef?: { current: HTMLElement | null }
+}) {
+  const supported = useMemo(() => supportsSpeechSynthesis(), [])
+  const [speaking, setSpeaking] = useState(false)
+  const [selectedText, setSelectedText] = useState('')
+
+  useEffect(() => {
+    if (!supported) return
+    window.speechSynthesis.cancel()
+    setSpeaking(false)
+    setSelectedText('')
+  }, [resetSignal, supported])
+
+  useEffect(() => {
+    if (!supported) return
+    return () => {
+      window.speechSynthesis.cancel()
+    }
+  }, [supported])
+
+  useEffect(() => {
+    if (!supported || !selectionScopeRef?.current) return
+    const updateSelection = () => {
+      const scope = selectionScopeRef.current
+      if (!scope) return
+      const sel = window.getSelection()
+      if (!sel || sel.rangeCount === 0) {
+        setSelectedText('')
+        return
+      }
+      const anchor = sel.anchorNode
+      const focus = sel.focusNode
+      const inScope = Boolean(
+        anchor &&
+          focus &&
+          (scope.contains(anchor.nodeType === Node.TEXT_NODE ? anchor.parentNode : anchor) ||
+            scope.contains(focus.nodeType === Node.TEXT_NODE ? focus.parentNode : focus)),
+      )
+      if (!inScope) {
+        setSelectedText('')
+        return
+      }
+      setSelectedText(sel.toString().trim())
+    }
+    document.addEventListener('selectionchange', updateSelection)
+    return () => document.removeEventListener('selectionchange', updateSelection)
+  }, [supported, selectionScopeRef])
+
+  if (!supported || !text.trim()) return null
+
+  const onToggleSpeak = () => {
+    const content = selectedText || text
+    if (speaking) {
+      window.speechSynthesis.cancel()
+      setSpeaking(false)
+      return
+    }
+    const utterance = new SpeechSynthesisUtterance(content)
+    utterance.lang = 'en-US'
+    utterance.rate = 1
+    utterance.pitch = 1
+    utterance.onend = () => setSpeaking(false)
+    utterance.onerror = () => setSpeaking(false)
+    window.speechSynthesis.cancel()
+    window.speechSynthesis.speak(utterance)
+    setSpeaking(true)
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onToggleSpeak}
+      className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition ${
+        speaking
+          ? 'bg-rose-600 text-white shadow-sm hover:bg-rose-500'
+          : 'border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
+      }`}
+      aria-pressed={speaking}
+      aria-label={speaking ? 'Stop reading text' : 'Read text aloud'}
+    >
+      {speaking ? (
+        <>
+          <Square className="size-4 shrink-0 fill-current" aria-hidden />
+          Stop
+        </>
+      ) : (
+        <>
+          <Volume2 className="size-4 shrink-0" aria-hidden />
+          {selectedText ? 'Read selection' : 'Read text'}
+        </>
+      )}
+    </button>
   )
 }
 
@@ -332,6 +438,8 @@ export function AnkiCardDetailModal({
   const [part, setPart] = useState<1 | 2>(1)
   const openPart2Ref = useRef<HTMLButtonElement>(null)
   const backToPart1Ref = useRef<HTMLButtonElement>(null)
+  const translationTextRef = useRef<HTMLParagraphElement>(null)
+  const examplesTextRef = useRef<HTMLParagraphElement>(null)
 
   /** Part 1: first field line = word (media tags stripped for display). */
   const wordLine = useMemo(() => {
@@ -502,18 +610,40 @@ export function AnkiCardDetailModal({
 
                 {part2BackParsed.translation ? (
                   <div className="mt-8 text-left">
-                    <p className="text-[1.05rem] italic leading-relaxed text-sky-700 dark:text-sky-300 sm:text-[1.15rem]">
+                    <p
+                      ref={translationTextRef}
+                      className="select-text text-[1.05rem] italic leading-relaxed text-sky-700 dark:text-sky-300 sm:text-[1.15rem]"
+                    >
                       {part2BackParsed.translation}
                     </p>
+                    <div className="mt-3 flex justify-center sm:justify-start">
+                      <SpeakTextButton
+                        text={part2BackParsed.translation}
+                        resetSignal={cardIndex}
+                        selectionScopeRef={translationTextRef}
+                      />
+                    </div>
                   </div>
                 ) : null}
 
                 {part2BackParsed.examples || exampleAudios.length > 0 || extraPictures.length > 0 ? (
                   <div className="mt-8 text-left">
                     {part2BackParsed.examples ? (
-                      <p className="whitespace-pre-wrap text-[0.95rem] leading-relaxed text-slate-600 dark:text-slate-400 sm:text-[1.05rem]">
-                        {part2BackParsed.examples}
-                      </p>
+                      <>
+                        <p
+                          ref={examplesTextRef}
+                          className="select-text whitespace-pre-wrap text-[0.95rem] leading-relaxed text-slate-600 dark:text-slate-400 sm:text-[1.05rem]"
+                        >
+                          {part2BackParsed.examples}
+                        </p>
+                        <div className="mt-3 flex justify-center sm:justify-start">
+                          <SpeakTextButton
+                            text={part2BackParsed.examples}
+                            resetSignal={cardIndex}
+                            selectionScopeRef={examplesTextRef}
+                          />
+                        </div>
+                      </>
                     ) : null}
                     {exampleAudios.length > 0 ? (
                       <div className="mt-5 flex flex-col items-center gap-5 sm:items-start">
