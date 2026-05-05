@@ -1,5 +1,6 @@
-import { BookText, Layers, Volume2 } from 'lucide-react'
+import { BookText, Layers, Music, Volume2 } from 'lucide-react'
 import { useMemo, useRef } from 'react'
+import { buildSongSearchLinks } from '../lib/externalSongLinks'
 import { SpeakTextButton } from './SpeakTextButton'
 import type { WordDefinitionDto } from '../types/dictionary'
 
@@ -15,6 +16,8 @@ export function DefinitionCard({ definition, onAddToAnki }: DefinitionCardProps)
     () => `${definition.word}\n${definition.primaryDefinition}`,
     [definition.word, definition.primaryDefinition],
   )
+
+  const songLinks = useMemo(() => buildSongSearchLinks(definition.word), [definition.word])
 
   const playAudio = () => {
     const el = audioRef.current
@@ -87,6 +90,32 @@ export function DefinitionCard({ definition, onAddToAnki }: DefinitionCardProps)
             />
           </div>
         </div>
+        {songLinks.length > 0 ? (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950/40">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
+              <Music className="size-3.5 shrink-0 text-violet-600 dark:text-violet-400" aria-hidden />
+              <span className="font-medium text-slate-700 dark:text-slate-300">Songs (external)</span>
+              <span className="text-slate-400 dark:text-slate-500">—</span>
+              <span className="sr-only">Opens YouTube, Spotify, or Genius in a new tab.</span>
+              {songLinks.map((link, i) => (
+                <span key={link.label} className="inline-flex items-center gap-1">
+                  {i > 0 ? <span className="text-slate-300 dark:text-slate-600">·</span> : null}
+                  <a
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-violet-700 underline decoration-violet-400/70 underline-offset-2 transition hover:text-violet-900 dark:text-violet-300 dark:hover:text-violet-200"
+                  >
+                    {link.label}
+                  </a>
+                </span>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[0.7rem] leading-snug text-slate-500 dark:text-slate-500">
+              Search-only links; playback stays on those sites. Results are not filtered by lyrics.
+            </p>
+          </div>
+        ) : null}
         {onAddToAnki ? (
           <button
             type="button"

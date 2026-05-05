@@ -12,6 +12,7 @@ import {
 import { alignUserWordsToReference, tokenizeInputWithSpans } from '../lib/dictationWordAlign'
 import { findApkgMediaUrl } from '../lib/apkgMedia'
 import type { AnkiCard } from '../types/anki'
+import { SongLinksFromSelection } from './SongLinksFromSelection'
 import { SpeakTextButton } from './SpeakTextButton'
 
 /** Subset of the Web Speech API (omitted from this project's DOM typings). */
@@ -602,12 +603,13 @@ export function AnkiCardDetailModal({
                       >
                         {interviewQuestionDisplay}
                       </p>
-                      <div className="mt-4 flex justify-center">
+                      <div className="mt-4 flex flex-col items-center gap-2 sm:items-start">
                         <SpeakTextButton
                           text={interviewQuestionDisplay}
                           resetSignal={cardIndex}
                           selectionScopeRef={part1WordTextRef}
                         />
+                        <SongLinksFromSelection selectionScopeRef={part1WordTextRef} resetSignal={cardIndex} align="start" />
                       </div>
                     </>
                   ) : (
@@ -626,12 +628,13 @@ export function AnkiCardDetailModal({
                       >
                         {wordLine}
                       </p>
-                      <div className="mt-4 flex justify-center">
+                      <div className="mt-4 flex flex-col items-center gap-2 sm:items-start">
                         <SpeakTextButton
                           text={wordLine}
                           resetSignal={cardIndex}
                           selectionScopeRef={part1WordTextRef}
                         />
+                        <SongLinksFromSelection selectionScopeRef={part1WordTextRef} resetSignal={cardIndex} align="start" />
                       </div>
                     </>
                   ) : null}
@@ -662,12 +665,13 @@ export function AnkiCardDetailModal({
                     >
                       {interviewAnswerDisplay}
                     </p>
-                    <div className="mt-4 flex justify-center sm:justify-start">
+                    <div className="mt-4 flex flex-col items-center gap-2 sm:items-start">
                       <SpeakTextButton
                         text={interviewAnswerDisplay}
                         resetSignal={cardIndex}
                         selectionScopeRef={interviewAnswerTextRef}
                       />
+                      <SongLinksFromSelection selectionScopeRef={interviewAnswerTextRef} resetSignal={cardIndex} align="start" />
                     </div>
                   </>
                 ) : (
@@ -706,12 +710,13 @@ export function AnkiCardDetailModal({
                         >
                           {part2BackParsed.definition}
                         </p>
-                        <div className="mt-3 flex justify-center sm:justify-start">
+                        <div className="mt-3 flex flex-col items-center gap-2 sm:items-start">
                           <SpeakTextButton
                             text={part2BackParsed.definition}
                             resetSignal={cardIndex}
                             selectionScopeRef={definitionTextRef}
                           />
+                          <SongLinksFromSelection selectionScopeRef={definitionTextRef} resetSignal={cardIndex} align="start" />
                         </div>
                       </>
                     ) : null}
@@ -731,12 +736,13 @@ export function AnkiCardDetailModal({
                     >
                       {part2BackParsed.translation}
                     </p>
-                    <div className="mt-3 flex justify-center sm:justify-start">
+                    <div className="mt-3 flex flex-col items-center gap-2 sm:items-start">
                       <SpeakTextButton
                         text={part2BackParsed.translation}
                         resetSignal={cardIndex}
                         selectionScopeRef={translationTextRef}
                       />
+                      <SongLinksFromSelection selectionScopeRef={translationTextRef} resetSignal={cardIndex} align="start" />
                     </div>
                   </div>
                 ) : null}
@@ -751,12 +757,13 @@ export function AnkiCardDetailModal({
                         >
                           {part2BackParsed.examples}
                         </p>
-                        <div className="mt-3 flex justify-center sm:justify-start">
+                        <div className="mt-3 flex flex-col items-center gap-2 sm:items-start">
                           <SpeakTextButton
                             text={part2BackParsed.examples}
                             resetSignal={cardIndex}
                             selectionScopeRef={examplesTextRef}
                           />
+                          <SongLinksFromSelection selectionScopeRef={examplesTextRef} resetSignal={cardIndex} align="start" />
                         </div>
                       </>
                     ) : null}
