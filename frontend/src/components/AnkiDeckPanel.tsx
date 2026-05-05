@@ -22,14 +22,29 @@ export function AnkiDeckPanel({ cards, onCardsChange }: AnkiDeckPanelProps) {
 
   mediaUrlsRef.current = mediaUrls
 
-  const deckOrdinalByIndex = useMemo(() => {
+  const { deckOrdinalByIndex, sortedDeckIndices } = useMemo(() => {
     const order = cards
       .map((c, i) => ({ i, label: baseWordLabel(c.front).toLowerCase() }))
       .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
     const map = new Map<number, number>()
     order.forEach((x, pos) => map.set(x.i, pos + 1))
-    return map
+    return {
+      deckOrdinalByIndex: map,
+      sortedDeckIndices: order.map((x) => x.i),
+    }
   }, [cards])
+
+  const nextCardIndexInAzOrder = useMemo(() => {
+    if (selectedIndex === null) return null
+    const pos = sortedDeckIndices.indexOf(selectedIndex)
+    if (pos < 0 || pos >= sortedDeckIndices.length - 1) return null
+    return sortedDeckIndices[pos + 1]
+  }, [selectedIndex, sortedDeckIndices])
+
+  const goToNextCardInAzOrder = useCallback(() => {
+    if (nextCardIndexInAzOrder === null) return
+    setSelectedIndex(nextCardIndexInAzOrder)
+  }, [nextCardIndexInAzOrder])
 
   const listRows = useMemo(() => {
     const q = listSearch.trim().toLowerCase()
@@ -313,6 +328,8 @@ export function AnkiDeckPanel({ cards, onCardsChange }: AnkiDeckPanelProps) {
             removeAt(i)
             setSelectedIndex(null)
           }}
+          hasNextCard={nextCardIndexInAzOrder !== null}
+          onNextCard={goToNextCardInAzOrder}
         />
       ) : null}
     </section>

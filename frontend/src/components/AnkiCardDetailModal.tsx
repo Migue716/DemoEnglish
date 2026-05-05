@@ -126,6 +126,9 @@ type AnkiCardDetailModalProps = {
   mediaUrls: ReadonlyMap<string, string>
   onClose: () => void
   onRemove: () => void
+  /** When set and `hasNextCard` is true, Part 2 footer shows a control to open the following card. */
+  onNextCard?: () => void
+  hasNextCard?: boolean
 }
 
 function PreviewDivider({ show }: { show: boolean }) {
@@ -326,6 +329,8 @@ export function AnkiCardDetailModal({
   mediaUrls,
   onClose,
   onRemove,
+  onNextCard,
+  hasNextCard = false,
 }: AnkiCardDetailModalProps) {
   const cardLabelPosition = deckOrdinal ?? cardIndex + 1
   const [part, setPart] = useState<1 | 2>(1)
@@ -593,15 +598,27 @@ export function AnkiCardDetailModal({
           className={`flex shrink-0 flex-wrap items-center gap-2 border-t border-slate-100 px-5 py-4 dark:border-slate-800 sm:px-7 ${part === 1 ? 'justify-end' : 'justify-between'}`}
         >
           {part === 2 ? (
-            <button
-              ref={backToPart1Ref}
-              type="button"
-              onClick={() => setPart(1)}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-base font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              <ArrowLeft className="size-5" aria-hidden />
-              Part 1
-            </button>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <button
+                ref={backToPart1Ref}
+                type="button"
+                onClick={() => setPart(1)}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-base font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                <ArrowLeft className="size-5" aria-hidden />
+                Part 1
+              </button>
+              {hasNextCard && onNextCard ? (
+                <button
+                  type="button"
+                  onClick={() => onNextCard()}
+                  className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-base font-medium text-indigo-800 transition hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-100 dark:hover:bg-indigo-900/60"
+                >
+                  Next card
+                  <ArrowRight className="size-5" aria-hidden />
+                </button>
+              ) : null}
+            </div>
           ) : null}
 
           <div className="flex flex-wrap items-center justify-end gap-2">
