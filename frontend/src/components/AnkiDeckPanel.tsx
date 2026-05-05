@@ -41,10 +41,22 @@ export function AnkiDeckPanel({ cards, onCardsChange }: AnkiDeckPanelProps) {
     return sortedDeckIndices[pos + 1]
   }, [selectedIndex, sortedDeckIndices])
 
+  const prevCardIndexInAzOrder = useMemo(() => {
+    if (selectedIndex === null) return null
+    const pos = sortedDeckIndices.indexOf(selectedIndex)
+    if (pos <= 0) return null
+    return sortedDeckIndices[pos - 1]
+  }, [selectedIndex, sortedDeckIndices])
+
   const goToNextCardInAzOrder = useCallback(() => {
     if (nextCardIndexInAzOrder === null) return
     setSelectedIndex(nextCardIndexInAzOrder)
   }, [nextCardIndexInAzOrder])
+
+  const goToPrevCardInAzOrder = useCallback(() => {
+    if (prevCardIndexInAzOrder === null) return
+    setSelectedIndex(prevCardIndexInAzOrder)
+  }, [prevCardIndexInAzOrder])
 
   const listRows = useMemo(() => {
     const q = listSearch.trim().toLowerCase()
@@ -330,6 +342,8 @@ export function AnkiDeckPanel({ cards, onCardsChange }: AnkiDeckPanelProps) {
           }}
           hasNextCard={nextCardIndexInAzOrder !== null}
           onNextCard={goToNextCardInAzOrder}
+          hasPrevCard={prevCardIndexInAzOrder !== null}
+          onPrevCard={goToPrevCardInAzOrder}
         />
       ) : null}
     </section>

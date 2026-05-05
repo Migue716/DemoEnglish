@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Eraser, Mic, Square, Trash2, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { ArrowLeft, ArrowRight, ChevronLeft, Eraser, Mic, Square, Trash2, X } from 'lucide-react'
 import { ankiModalPanelStyle } from '../config/ankiModalLayout'
 import {
   extractMediaEmbedsInOrder,
@@ -9,6 +9,7 @@ import {
   stripMediaPlaceholders,
   stripMediaTagsKeepNewlines,
 } from '../lib/ankiCardLayout'
+import { alignUserWordsToReference, tokenizeInputWithSpans } from '../lib/dictationWordAlign'
 import { findApkgMediaUrl } from '../lib/apkgMedia'
 import type { AnkiCard } from '../types/anki'
 import { SpeakTextButton } from './SpeakTextButton'
@@ -129,6 +130,9 @@ type AnkiCardDetailModalProps = {
   /** When set and `hasNextCard` is true, Part 2 footer shows a control to open the following card. */
   onNextCard?: () => void
   hasNextCard?: boolean
+  /** When set and `hasPrevCard` is true, Part 2 footer shows a control to open the previous card (same deck order as the list). */
+  onPrevCard?: () => void
+  hasPrevCard?: boolean
 }
 
 function PreviewDivider({ show }: { show: boolean }) {
@@ -145,15 +149,79 @@ function getSpeechRecognitionCtor(): WebSpeechRecognitionCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null
 }
 
+type DictationRefParagraph = { id: string; label: string; text: string }
+
 /** Browser speech-to-text (Chrome/Edge; limited elsewhere). Requires HTTPS or localhost. */
-function Part2Dictation({ resetSignal }: { resetSignal: number }) {
+function Part2Dictation({
+  resetSignal,
+  referenceParagraphs,
+}: {
+  resetSignal: number
+  referenceParagraphs: DictationRefParagraph[]
+}) {
   const supported = useMemo(() => getSpeechRecognitionCtor() !== null, [])
   const [text, setText] = useState('')
   const [listening, setListening] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedRefId, setSelectedRefId] = useState(() => referenceParagraphs[0]?.id ?? '')
   const accumulatedRef = useRef('')
   const recRef = useRef<WebSpeechRecognition | null>(null)
   const userWantsListenRef = useRef(false)
+
+  useEffect(() => {
+    setSelectedRefId(referenceParagraphs[0]?.id ?? '')
+  }, [resetSignal, referenceParagraphs])
+
+  const selectedRefText = useMemo(() => {
+    const p = referenceParagraphs.find((x) => x.id === selectedRefId)
+    return p?.text ?? referenceParagraphs[0]?.text ?? ''
+  }, [referenceParagraphs, selectedRefId])
+
+  const coloredWordPreview = useMemo((): ReactNode => {
+    const refTrim = selectedRefText.trim()
+    if (!refTrim) return null
+    const tokens = tokenizeInputWithSpans(text)
+    if (tokens.length === 0) {
+      return <span className="text-slate-400 dark:text-slate-500">Type or dictate to compare word by word.</span>
+    }
+    const statuses = alignUserWordsToReference(selectedRefText, text)
+    if (statuses.length !== tokens.length) {
+      return <span className="text-slate-500">{text}</span>
+    }
+    const parts: ReactNode[] = []
+    let pos = 0
+    tokens.forEach((tok, k) => {
+      if (tok.start > pos) {
+        parts.push(
+          <span key={`gap-${pos}`} className="text-slate-700 dark:text-slate-200">
+            {text.slice(pos, tok.start)}
+          </span>,
+        )
+      }
+      const ok = statuses[k] === 'ok'
+      parts.push(
+        <span
+          key={`tok-${tok.start}-${k}`}
+          className={
+            ok
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : 'text-rose-600 underline decoration-rose-400/80 dark:text-rose-400 dark:decoration-rose-500/80'
+          }
+        >
+          {tok.text}
+        </span>,
+      )
+      pos = tok.end
+    })
+    if (pos < text.length) {
+      parts.push(
+        <span key={`tail-${pos}`} className="text-slate-700 dark:text-slate-200">
+          {text.slice(pos)}
+        </span>,
+      )
+    }
+    return parts
+  }, [text, selectedRefText])
 
   const stopListening = useCallback(() => {
     userWantsListenRef.current = false
@@ -302,6 +370,27 @@ function Part2Dictation({ resetSignal }: { resetSignal: number }) {
           Clear
         </button>
       </div>
+      {referenceParagraphs.length > 0 ? (
+        <div className="mt-3 flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+          <label className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300">
+            <span>Compare to</span>
+            <select
+              value={selectedRefId}
+              onChange={(e) => setSelectedRefId(e.target.value)}
+              className="max-w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+            >
+              {referenceParagraphs.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="text-xs text-slate-500 dark:text-slate-400">
+            Green = same word (after normalizing); red = mismatch or extra.
+          </span>
+        </div>
+      ) : null}
       {error ? <p className="mt-2 text-center text-sm text-rose-600 dark:text-rose-400 sm:text-left">{error}</p> : null}
       <label className="mt-3 block">
         <span className="sr-only">Transcript</span>
@@ -317,6 +406,19 @@ function Part2Dictation({ resetSignal }: { resetSignal: number }) {
           spellCheck
         />
       </label>
+      {referenceParagraphs.length > 0 && selectedRefText.trim() ? (
+        <div className="mt-3">
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            Word check
+          </p>
+          <div
+            className="min-h-[3.25rem] whitespace-pre-wrap break-words rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm leading-relaxed text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            aria-live="polite"
+          >
+            {coloredWordPreview}
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -331,6 +433,8 @@ export function AnkiCardDetailModal({
   onRemove,
   onNextCard,
   hasNextCard = false,
+  onPrevCard,
+  hasPrevCard = false,
 }: AnkiCardDetailModalProps) {
   const cardLabelPosition = deckOrdinal ?? cardIndex + 1
   const [part, setPart] = useState<1 | 2>(1)
@@ -398,6 +502,21 @@ export function AnkiCardDetailModal({
       exampleAudios.length > 0 ||
       extraPictures.length > 0,
   )
+
+  const dictationReferenceParagraphs = useMemo((): DictationRefParagraph[] => {
+    const opts: DictationRefParagraph[] = []
+    if (part2BackParsed.definition.trim()) {
+      opts.push({ id: 'definition', label: 'Definition', text: part2BackParsed.definition })
+    }
+    if (part2BackParsed.translation.trim()) {
+      opts.push({ id: 'translation', label: 'Translation', text: part2BackParsed.translation })
+    }
+    if (part2BackParsed.examples.trim()) {
+      opts.push({ id: 'examples', label: 'Examples', text: part2BackParsed.examples })
+    }
+    return opts
+  }, [part2BackParsed.definition, part2BackParsed.translation, part2BackParsed.examples])
+
   useEffect(() => {
     setPart(1)
   }, [cardIndex, card.front, card.back])
@@ -588,7 +707,7 @@ export function AnkiCardDetailModal({
                 {!part2HasContent ? (
                   <p className="text-center text-slate-500 dark:text-slate-400">(No extra fields)</p>
                 ) : null}
-                <Part2Dictation resetSignal={cardIndex} />
+                <Part2Dictation resetSignal={cardIndex} referenceParagraphs={dictationReferenceParagraphs} />
               </div>
             </section>
           )}
@@ -608,6 +727,16 @@ export function AnkiCardDetailModal({
                 <ArrowLeft className="size-5" aria-hidden />
                 Part 1
               </button>
+              {hasPrevCard && onPrevCard ? (
+                <button
+                  type="button"
+                  onClick={() => onPrevCard()}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-base font-medium text-slate-800 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+                >
+                  <ChevronLeft className="size-5" aria-hidden />
+                  Previous card
+                </button>
+              ) : null}
               {hasNextCard && onNextCard ? (
                 <button
                   type="button"
