@@ -4,6 +4,7 @@ import { fetchWordDefinition } from './api/dictionaryClient'
 import { AnkiDeckPanel } from './components/AnkiDeckPanel'
 import { VerbTensePracticeDialog, VerbTenseMenuButton } from './components/VerbTensePracticeDialog'
 import { VerbTenseTheoryDialog, TenseTheoryMenuButton } from './components/VerbTenseTheoryDialog'
+import { VerbListsDialog, VerbListsMenuButton } from './components/VerbListsDialog'
 import { DefinitionCard } from './components/DefinitionCard'
 import { SearchBar } from './components/SearchBar'
 import { SettingsDialog, SettingsMenuButton } from './components/SettingsDialog'
@@ -29,6 +30,7 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [verbPracticeOpen, setVerbPracticeOpen] = useState(false)
   const [tenseTheoryOpen, setTenseTheoryOpen] = useState(false)
+  const [verbListsOpen, setVerbListsOpen] = useState(false)
 
   const runSearch = useCallback(async () => {
     setError(null)
@@ -83,6 +85,7 @@ function App() {
             <div className="flex flex-wrap items-center justify-center gap-2 sm:shrink-0 sm:justify-end sm:pt-1">
               <VerbTenseMenuButton open={verbPracticeOpen} onClick={() => setVerbPracticeOpen(true)} />
               <TenseTheoryMenuButton open={tenseTheoryOpen} onClick={() => setTenseTheoryOpen(true)} />
+              <VerbListsMenuButton open={verbListsOpen} onClick={() => setVerbListsOpen(true)} />
               <SettingsMenuButton open={settingsOpen} onClick={() => setSettingsOpen(true)} />
             </div>
           </div>
@@ -124,6 +127,7 @@ function App() {
       </div>
       <VerbTensePracticeDialog open={verbPracticeOpen} onClose={() => setVerbPracticeOpen(false)} />
       <VerbTenseTheoryDialog open={tenseTheoryOpen} onClose={() => setTenseTheoryOpen(false)} />
+      <VerbListsDialog open={verbListsOpen} onClose={() => setVerbListsOpen(false)} />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   )
