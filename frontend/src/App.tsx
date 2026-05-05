@@ -1,8 +1,10 @@
 import { useCallback, useState } from 'react'
 import { GraduationCap } from 'lucide-react'
 import { fetchWordDefinition } from './api/dictionaryClient'
+import { translateToEnglish } from './api/translatorClient'
 import { AnkiDeckPanel } from './components/AnkiDeckPanel'
 import { VerbTensePracticeDialog, VerbTenseMenuButton } from './components/VerbTensePracticeDialog'
+import { CuratedEnglishVideosDialog, CuratedVideosMenuButton } from './components/CuratedEnglishVideosDialog'
 import { VerbTenseTheoryDialog, TenseTheoryMenuButton } from './components/VerbTenseTheoryDialog'
 import { VerbListsDialog, VerbListsMenuButton } from './components/VerbListsDialog'
 import { DefinitionCard } from './components/DefinitionCard'
@@ -21,6 +23,13 @@ function buildAnkiBackFromDefinition(d: WordDefinitionDto): string {
   return lines.join('\n')
 }
 
+function hasSpanishIndicators(text: string): boolean {
+  const normalized = text.toLowerCase()
+  if (/[áéíóúñü¡¿]/i.test(normalized)) return true
+  const commonSpanishWords = /\b(el|la|los|las|de|que|y|en|un|una|es|con|por|para|fin|semana)\b/
+  return commonSpanishWords.test(normalized)
+}
+
 function App() {
   const [query, setQuery] = useState('')
   const [definition, setDefinition] = useState<WordDefinitionDto | null>(null)
@@ -30,20 +39,43 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [verbPracticeOpen, setVerbPracticeOpen] = useState(false)
   const [tenseTheoryOpen, setTenseTheoryOpen] = useState(false)
+  const [curatedVideosOpen, setCuratedVideosOpen] = useState(false)
   const [verbListsOpen, setVerbListsOpen] = useState(false)
 
   const runSearch = useCallback(async () => {
+    const trimmedQuery = query.trim()
     setError(null)
     setLoading(true)
     try {
-      const result = await fetchWordDefinition(query)
+      const result = await fetchWordDefinition(trimmedQuery)
       setDefinition(result)
     } catch (e) {
-      setDefinition(null)
-      if (e instanceof DictionaryRequestError) {
-        setError(e.message)
+      if (e instanceof DictionaryRequestError && hasSpanishIndicators(trimmedQuery)) {
+        try {
+          const translatedText = await translateToEnglish(trimmedQuery)
+          setDefinition({
+            word: trimmedQuery,
+            phoneticText: null,
+            audioUrl: null,
+            primaryDefinition: translatedText,
+            partOfSpeech: 'translation',
+          })
+          setError(null)
+        } catch (translationIssue) {
+          setDefinition(null)
+          const message =
+            translationIssue instanceof Error
+              ? translationIssue.message
+              : 'Translation failed. Please try again.'
+          setError(message)
+        }
       } else {
-        setError('Something went wrong. Please try again.')
+        setDefinition(null)
+        if (e instanceof DictionaryRequestError) {
+          setError(e.message)
+        } else {
+          setError('Something went wrong. Please try again.')
+        }
       }
     } finally {
       setLoading(false)
@@ -85,6 +117,7 @@ function App() {
             <div className="flex flex-wrap items-center justify-center gap-2 sm:shrink-0 sm:justify-end sm:pt-1">
               <VerbTenseMenuButton open={verbPracticeOpen} onClick={() => setVerbPracticeOpen(true)} />
               <TenseTheoryMenuButton open={tenseTheoryOpen} onClick={() => setTenseTheoryOpen(true)} />
+              <CuratedVideosMenuButton open={curatedVideosOpen} onClick={() => setCuratedVideosOpen(true)} />
               <VerbListsMenuButton open={verbListsOpen} onClick={() => setVerbListsOpen(true)} />
               <SettingsMenuButton open={settingsOpen} onClick={() => setSettingsOpen(true)} />
             </div>
@@ -127,6 +160,7 @@ function App() {
       </div>
       <VerbTensePracticeDialog open={verbPracticeOpen} onClose={() => setVerbPracticeOpen(false)} />
       <VerbTenseTheoryDialog open={tenseTheoryOpen} onClose={() => setTenseTheoryOpen(false)} />
+      <CuratedEnglishVideosDialog open={curatedVideosOpen} onClose={() => setCuratedVideosOpen(false)} />
       <VerbListsDialog open={verbListsOpen} onClose={() => setVerbListsOpen(false)} />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
