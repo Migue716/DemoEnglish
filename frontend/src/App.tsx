@@ -3,6 +3,7 @@ import { GraduationCap } from 'lucide-react'
 import { fetchWordDefinition } from './api/dictionaryClient'
 import { AnkiDeckPanel } from './components/AnkiDeckPanel'
 import { VerbTensePracticeDialog, VerbTenseMenuButton } from './components/VerbTensePracticeDialog'
+import { VerbTenseTheoryDialog, TenseTheoryMenuButton } from './components/VerbTenseTheoryDialog'
 import { DefinitionCard } from './components/DefinitionCard'
 import { SearchBar } from './components/SearchBar'
 import { SettingsDialog, SettingsMenuButton } from './components/SettingsDialog'
@@ -27,6 +28,7 @@ function App() {
   const [ankiCards, setAnkiCards] = useState<AnkiCard[]>([])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [verbPracticeOpen, setVerbPracticeOpen] = useState(false)
+  const [tenseTheoryOpen, setTenseTheoryOpen] = useState(false)
 
   const runSearch = useCallback(async () => {
     setError(null)
@@ -80,6 +82,7 @@ function App() {
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2 sm:shrink-0 sm:justify-end sm:pt-1">
               <VerbTenseMenuButton open={verbPracticeOpen} onClick={() => setVerbPracticeOpen(true)} />
+              <TenseTheoryMenuButton open={tenseTheoryOpen} onClick={() => setTenseTheoryOpen(true)} />
               <SettingsMenuButton open={settingsOpen} onClick={() => setSettingsOpen(true)} />
             </div>
           </div>
@@ -120,6 +123,7 @@ function App() {
         </footer>
       </div>
       <VerbTensePracticeDialog open={verbPracticeOpen} onClose={() => setVerbPracticeOpen(false)} />
+      <VerbTenseTheoryDialog open={tenseTheoryOpen} onClose={() => setTenseTheoryOpen(false)} />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   )
