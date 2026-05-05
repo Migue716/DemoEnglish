@@ -1,7 +1,61 @@
 import { useEffect } from 'react'
-import { GraduationCap, X } from 'lucide-react'
+import { ChevronDown, ExternalLink, GraduationCap, Play, X } from 'lucide-react'
 import { MarkdownFormula, MarkdownLite } from './MarkdownLite'
-import { verbTenseTheoryBlocks, verbTenseTheoryExtra } from '../data/verbTenseTheory'
+import {
+  verbTenseTheoryBlocks,
+  verbTenseTheoryExtra,
+  verbTenseTheoryFeaturedVideo,
+  type TenseTheoryYoutube,
+} from '../data/verbTenseTheory'
+
+function youtubeWatchUrl(videoId: string) {
+  return `https://www.youtube.com/watch?v=${videoId}`
+}
+
+function TenseTheoryYoutubeDetails({
+  video,
+  className = '',
+}: {
+  video: TenseTheoryYoutube & { label?: string }
+  className?: string
+}) {
+  const title = video.label?.trim() || 'YouTube lesson'
+  return (
+    <details
+      className={`group rounded-lg border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-900/40 ${className}`}
+    >
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 marker:content-none dark:text-slate-300 [&::-webkit-details-marker]:hidden">
+        <Play className="size-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+        <span className="min-w-0 flex-1">{title}</span>
+        <ChevronDown
+          className="size-4 shrink-0 text-slate-400 transition group-open:rotate-180 dark:text-slate-500"
+          aria-hidden
+        />
+      </summary>
+      <div className="space-y-2 border-t border-slate-200 px-3 pb-3 pt-2 dark:border-slate-700">
+        <div className="aspect-video w-full overflow-hidden rounded-lg bg-black">
+          <iframe
+            className="h-full w-full"
+            src={`https://www.youtube-nocookie.com/embed/${video.videoId}`}
+            title={title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            loading="lazy"
+          />
+        </div>
+        <a
+          href={youtubeWatchUrl(video.videoId)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-700 underline-offset-2 hover:underline dark:text-amber-400"
+        >
+          Open on YouTube
+          <ExternalLink className="size-3.5 shrink-0 opacity-80" aria-hidden />
+        </a>
+      </div>
+    </details>
+  )
+}
 
 type VerbTenseTheoryDialogProps = {
   open: boolean
@@ -59,6 +113,8 @@ export function VerbTenseTheoryDialog({ open, onClose }: VerbTenseTheoryDialogPr
           </button>
         </div>
         <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
+          <TenseTheoryYoutubeDetails video={verbTenseTheoryFeaturedVideo} />
+
           <ul className="space-y-5">
             {verbTenseTheoryBlocks.map((b) => (
               <li key={b.id} className="rounded-xl border border-slate-200 bg-slate-50/90 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/60">
@@ -75,6 +131,7 @@ export function VerbTenseTheoryDialog({ open, onClose }: VerbTenseTheoryDialogPr
                 <p className="mt-1.5 text-sm text-slate-700 dark:text-slate-300">
                   <span className="font-medium">e.g.</span> <MarkdownLite text={b.example} />
                 </p>
+                <TenseTheoryYoutubeDetails video={b.youtube} className="mt-3" />
               </li>
             ))}
           </ul>
@@ -97,6 +154,7 @@ export function VerbTenseTheoryDialog({ open, onClose }: VerbTenseTheoryDialogPr
                       </p>
                     ))}
                 </div>
+                {x.youtube ? <TenseTheoryYoutubeDetails video={x.youtube} className="mt-3 border-amber-200/90 dark:border-amber-800/60" /> : null}
               </div>
             ))}
           </div>
