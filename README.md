@@ -12,7 +12,7 @@ Aplicación web para practicar vocabulario técnico en inglés. El **backend** (
 |------|------------|
 | **Diccionario** | Búsqueda de palabras; definición principal; categoría gramatical; IPA; audio de pronunciación si la API lo devuelve; lectura en voz alta (TTS) con voz y velocidad configurables; añadir la entrada al mazo Anki con un clic. |
 | **Mazo Anki (navegador)** | Importar `.apkg` o texto (`.txt` / `.tsv` / `.csv`); modos **añadir** o **reemplazar** lista; reproducir y mostrar medios incrustados del `.apkg`; exportar `.txt` compatible con Anki; descargar `.txt` de ejemplo; lista **A–Z** con búsqueda; vaciar mazo o quitar tarjetas. |
-| **Estudio (modal)** | Tarjeta en **dos partes** (palabra/medios vs. definición y resto); navegación entre tarjetas; **dictado** con reconocimiento de voz (`en-US`) para practicar pronunciación sin sustituir el contenido de la tarjeta. |
+| **Estudio (modal)** | Tarjeta en **dos partes** (palabra/medios vs. definición y resto); en **Parte 2**, **Previous card** / **Next card** para moverse por el mazo en **orden A–Z** (coincide con “Card X of Y”); **dictado** con reconocimiento de voz (`en-US`); **validación palabra a palabra** del texto dictado frente a un párrafo de referencia (**Compare to** + **Word check**). |
 | **Ajustes** | Voz en inglés y velocidad del **Speech Synthesis** del navegador; preferencias en `localStorage`; lectura en voz alta coherente en diccionario y modal. |
 | **API** | Definiciones agregadas; import/export de mazos (texto y `.apkg`); ejemplo descargable; CORS y Swagger en desarrollo (véase sección Backend). |
 
@@ -29,10 +29,23 @@ Aplicación web para practicar vocabulario técnico en inglés. El **backend** (
 - **Export for Anki** genera descarga vía API (UTF-8 con BOM, tab, línea `#separator:tab`).
 - **Sample .txt** enlaza al endpoint de ejemplo del backend.
 
+### Modal de tarjeta (Parte 1 y Parte 2)
+
+- **Parte 1:** palabra principal y medios asociados (audio/imagen del `.apkg` cuando aplica).
+- **Parte 2:** definición, traducción y ejemplos según el modelo de la tarjeta; controles **Remove** y **Close**.
+- **Navegación entre tarjetas (solo Parte 2):** botones **Previous card** y **Next card** para ir a la tarjeta anterior o siguiente en **orden alfabético A–Z** (el mismo que la lista y el contador “Card X of Y”). La primera tarjeta no muestra anterior; la última no muestra siguiente.
+- **Part 1** en el pie devuelve a la primera cara sin cambiar de tarjeta.
+
 ### Audio, TTS y dictado
 
 - **Ajustes → Read aloud:** elección de voz `en-*` (o todas si no hay inglés) y velocidad 0.5–1.5×.
-- **Dictado (Parte 2 del modal):** Web Speech API; funciona mejor en **Chrome** o **Edge**; requiere **HTTPS** o **localhost** y permiso de micrófono.
+- **Dictado (Parte 2 del modal):** Web Speech API; funciona mejor en **Chrome** o **Edge**; requiere **HTTPS** o **localhost** y permiso de micrófono. El texto transcrito no sustituye el contenido de la tarjeta; sirve para práctica oral.
+
+### Validación del dictado (Word check)
+
+- **Compare to:** selector para comparar el texto del área de dictado con **un solo bloque** de la tarjeta: **Definition**, **Translation** o **Examples** (solo aparecen los bloques que tengan texto).
+- **Word check:** debajo del cuadro de texto, vista previa coloreada del mismo transcript: **verde** si la palabra coincide con la referencia (tras normalizar minúsculas y signos; útil frente a errores del reconocimiento); **rojo** si no coincide, es extra u está desalineada. La alineación usa **edición a nivel de palabra** (inserciones, borrados y sustituciones) para que un fallo no descoloque todo el párrafo.
+- Implementación: `frontend/src/lib/dictationWordAlign.ts`; la interfaz está en `Part2Dictation` dentro de `AnkiCardDetailModal.tsx`.
 
 ## Requisitos
 
