@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import { GraduationCap } from 'lucide-react'
 import { fetchWordDefinition } from './api/dictionaryClient'
 import { AnkiDeckPanel } from './components/AnkiDeckPanel'
+import { VerbTensePracticeDialog, VerbTenseMenuButton } from './components/VerbTensePracticeDialog'
 import { DefinitionCard } from './components/DefinitionCard'
 import { SearchBar } from './components/SearchBar'
 import { SettingsDialog, SettingsMenuButton } from './components/SettingsDialog'
@@ -25,6 +26,7 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [ankiCards, setAnkiCards] = useState<AnkiCard[]>([])
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [verbPracticeOpen, setVerbPracticeOpen] = useState(false)
 
   const runSearch = useCallback(async () => {
     setError(null)
@@ -76,7 +78,8 @@ function App() {
                 </p>
               </div>
             </div>
-            <div className="flex justify-center sm:shrink-0 sm:pt-1">
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:shrink-0 sm:justify-end sm:pt-1">
+              <VerbTenseMenuButton open={verbPracticeOpen} onClick={() => setVerbPracticeOpen(true)} />
               <SettingsMenuButton open={settingsOpen} onClick={() => setSettingsOpen(true)} />
             </div>
           </div>
@@ -116,6 +119,7 @@ function App() {
           . Deck tools support plain text and .apkg import (see README for limits).
         </footer>
       </div>
+      <VerbTensePracticeDialog open={verbPracticeOpen} onClose={() => setVerbPracticeOpen(false)} />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   )
