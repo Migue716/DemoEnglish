@@ -12,7 +12,7 @@ Aplicación web para practicar vocabulario técnico en inglés. El **backend** (
 |------|------------|
 | **Diccionario** | Búsqueda de palabras; definición principal; categoría gramatical; IPA; audio de pronunciación si la API lo devuelve; lectura en voz alta (TTS) con voz y velocidad configurables; añadir la entrada al mazo Anki con un clic. |
 | **Mazo Anki (navegador)** | Importar `.apkg` o texto (`.txt` / `.tsv` / `.csv`); modos **añadir** o **reemplazar** lista; reproducir y mostrar medios incrustados del `.apkg`; exportar `.txt` compatible con Anki; descargar `.txt` de ejemplo; lista **A–Z** con búsqueda; vaciar mazo o quitar tarjetas. |
-| **Estudio (modal)** | Tarjeta en **dos partes** (palabra/medios vs. definición y resto); en **Parte 2**, **Previous card** / **Next card** para moverse por el mazo en **orden A–Z** (coincide con “Card X of Y”); **dictado** con reconocimiento de voz (`en-US`); **validación palabra a palabra** del texto dictado frente a un párrafo de referencia (**Compare to** + **Word check**). |
+| **Estudio (modal)** | Tarjeta en **dos partes**; **vocabulario:** palabra/medios vs. definición (y bloques del reverso); **entrevista (CSV):** pregunta vs. respuesta/guía. En **Parte 2**, **Previous card** / **Next card** en **orden A–Z**; **dictado** (`en-US`); **Compare to** + **Word check** (vocabulario: Definition/Translation/Examples; entrevista: Answer). |
 | **Ajustes** | Voz en inglés y velocidad del **Speech Synthesis** del navegador; preferencias en `localStorage`; lectura en voz alta coherente en diccionario y modal. |
 | **API** | Definiciones agregadas; import/export de mazos (texto y `.apkg`); ejemplo descargable; CORS y Swagger en desarrollo (véase sección Backend). |
 
@@ -25,8 +25,9 @@ Aplicación web para practicar vocabulario técnico en inglés. El **backend** (
 ### Mazo Anki (UI)
 
 - **Import file:** `.apkg` (colección SQLite dentro del ZIP) o delimitado por tab/comas; HTML en campos se reduce a texto en backend.
+- **Import interview CSV:** importación en el navegador de un **CSV UTF-8 con cabecera** (mismas reglas de columnas que `tools/AnkiInterviewExporter`: *Front* / *Pregunta* / *Question* y *Back* / *Guía* / *Answer* / *Respuesta*; delimitador `,` o `;` según la primera línea; campos entre comillas soportados). Las tarjetas se marcan como `kind: interview`: en el modal, **Parte 1 = pregunta** y **Parte 2 = guía/respuesta**; el dictado y *Word check* comparan con el **Answer** completo.
 - Tras importar `.apkg`, los `[sound:]` y `[img:]` se enlazan a medios extraídos; el orden sigue la lógica de `extractMediaEmbedsInOrder` en `frontend/src/lib/ankiCardLayout.ts`.
-- **Export for Anki** genera descarga vía API (UTF-8 con BOM, tab, línea `#separator:tab`).
+- **Export for Anki** genera descarga vía API (UTF-8 con BOM, tab, línea `#separator:tab`) — solo *front* / *back*; al reimportar por API se pierde la distinción *interview* (vuelve a vocabulario).
 - **Sample .txt** enlaza al endpoint de ejemplo del backend.
 
 ### Modal de tarjeta (Parte 1 y Parte 2)

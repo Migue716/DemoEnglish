@@ -437,13 +437,18 @@ export function AnkiCardDetailModal({
   hasPrevCard = false,
 }: AnkiCardDetailModalProps) {
   const cardLabelPosition = deckOrdinal ?? cardIndex + 1
+  const isInterview = card.kind === 'interview'
   const [part, setPart] = useState<1 | 2>(1)
   const openPart2Ref = useRef<HTMLButtonElement>(null)
   const backToPart1Ref = useRef<HTMLButtonElement>(null)
   const part1WordTextRef = useRef<HTMLParagraphElement>(null)
+  const interviewAnswerTextRef = useRef<HTMLParagraphElement>(null)
   const definitionTextRef = useRef<HTMLParagraphElement>(null)
   const translationTextRef = useRef<HTMLParagraphElement>(null)
   const examplesTextRef = useRef<HTMLParagraphElement>(null)
+
+  const interviewQuestionDisplay = useMemo(() => stripMediaTagsKeepNewlines(card.front), [card.front])
+  const interviewAnswerDisplay = useMemo(() => stripMediaTagsKeepNewlines(card.back), [card.back])
 
   /** Part 1: first field line = word (media tags stripped for display). */
   const wordLine = useMemo(() => {
@@ -504,6 +509,10 @@ export function AnkiCardDetailModal({
   )
 
   const dictationReferenceParagraphs = useMemo((): DictationRefParagraph[] => {
+    if (isInterview) {
+      const t = interviewAnswerDisplay.trim()
+      return t ? [{ id: 'answer', label: 'Answer', text: interviewAnswerDisplay }] : []
+    }
     const opts: DictationRefParagraph[] = []
     if (part2BackParsed.definition.trim()) {
       opts.push({ id: 'definition', label: 'Definition', text: part2BackParsed.definition })
@@ -515,7 +524,13 @@ export function AnkiCardDetailModal({
       opts.push({ id: 'examples', label: 'Examples', text: part2BackParsed.examples })
     }
     return opts
-  }, [part2BackParsed.definition, part2BackParsed.translation, part2BackParsed.examples])
+  }, [
+    isInterview,
+    interviewAnswerDisplay,
+    part2BackParsed.definition,
+    part2BackParsed.translation,
+    part2BackParsed.examples,
+  ])
 
   useEffect(() => {
     setPart(1)
@@ -554,6 +569,7 @@ export function AnkiCardDetailModal({
         <header className="flex shrink-0 items-start justify-between gap-2 border-b border-slate-100 px-5 py-4 dark:border-slate-800 sm:px-6">
           <div className="min-w-0">
             <p className="text-sm font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              {isInterview ? 'Interview prep · ' : ''}
               Card {cardLabelPosition} of {totalCards} · Part {part} of 2
             </p>
             <h3 id={titleId} className="mt-1 truncate text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
@@ -572,35 +588,92 @@ export function AnkiCardDetailModal({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
           {part === 1 ? (
-            <section aria-label="Word and media">
+            isInterview ? (
+              <section aria-label="Interview question">
+                <div className="rounded-2xl border border-slate-200 bg-slate-100 px-6 py-8 dark:border-slate-800 dark:bg-slate-950 sm:px-9 sm:py-10">
+                  <p className="mb-3 text-center text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Question
+                  </p>
+                  {interviewQuestionDisplay.trim() ? (
+                    <>
+                      <p
+                        ref={part1WordTextRef}
+                        className="select-text whitespace-pre-wrap text-center text-[1.15rem] font-semibold leading-snug text-indigo-700 dark:text-indigo-300 sm:text-[1.35rem]"
+                      >
+                        {interviewQuestionDisplay}
+                      </p>
+                      <div className="mt-4 flex justify-center">
+                        <SpeakTextButton
+                          text={interviewQuestionDisplay}
+                          resetSignal={cardIndex}
+                          selectionScopeRef={part1WordTextRef}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-center text-slate-500 dark:text-slate-400">(No question text)</p>
+                  )}
+                </div>
+              </section>
+            ) : (
+              <section aria-label="Word and media">
+                <div className="rounded-2xl border border-slate-200 bg-slate-100 px-6 py-8 dark:border-slate-800 dark:bg-slate-950 sm:px-9 sm:py-10">
+                  {wordLine ? (
+                    <>
+                      <p
+                        ref={part1WordTextRef}
+                        className="select-text text-center text-[1.65rem] font-semibold leading-tight tracking-tight text-indigo-600 dark:text-indigo-400 sm:text-[2.05rem]"
+                      >
+                        {wordLine}
+                      </p>
+                      <div className="mt-4 flex justify-center">
+                        <SpeakTextButton
+                          text={wordLine}
+                          resetSignal={cardIndex}
+                          selectionScopeRef={part1WordTextRef}
+                        />
+                      </div>
+                    </>
+                  ) : null}
+                  {wordLine && (wordAudio || wordPicture) ? <PreviewDivider show /> : null}
+                  {wordAudio || wordPicture ? (
+                    <div className="mx-auto flex w-full max-w-xl flex-col items-center gap-6">
+                      {wordAudio ? <DeckAudio filename={wordAudio} mediaUrls={mediaUrls} /> : null}
+                      {wordPicture ? <DeckImage filename={wordPicture} mediaUrls={mediaUrls} /> : null}
+                    </div>
+                  ) : null}
+                  {!part1HasContent && !hasAnyMedia ? (
+                    <p className="mt-4 text-center text-slate-500 dark:text-slate-400">(Nothing to show)</p>
+                  ) : null}
+                </div>
+              </section>
+            )
+          ) : isInterview ? (
+            <section aria-label="Interview answer">
               <div className="rounded-2xl border border-slate-200 bg-slate-100 px-6 py-8 dark:border-slate-800 dark:bg-slate-950 sm:px-9 sm:py-10">
-                {wordLine ? (
+                <p className="mb-3 text-center text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Answer / guide
+                </p>
+                {interviewAnswerDisplay.trim() ? (
                   <>
                     <p
-                      ref={part1WordTextRef}
-                      className="select-text text-center text-[1.65rem] font-semibold leading-tight tracking-tight text-indigo-600 dark:text-indigo-400 sm:text-[2.05rem]"
+                      ref={interviewAnswerTextRef}
+                      className="select-text whitespace-pre-wrap text-[1.05rem] leading-relaxed text-emerald-800 dark:text-emerald-300 sm:text-[1.15rem]"
                     >
-                      {wordLine}
+                      {interviewAnswerDisplay}
                     </p>
-                    <div className="mt-4 flex justify-center">
+                    <div className="mt-4 flex justify-center sm:justify-start">
                       <SpeakTextButton
-                        text={wordLine}
+                        text={interviewAnswerDisplay}
                         resetSignal={cardIndex}
-                        selectionScopeRef={part1WordTextRef}
+                        selectionScopeRef={interviewAnswerTextRef}
                       />
                     </div>
                   </>
-                ) : null}
-                {wordLine && (wordAudio || wordPicture) ? <PreviewDivider show /> : null}
-                {wordAudio || wordPicture ? (
-                  <div className="mx-auto flex w-full max-w-xl flex-col items-center gap-6">
-                    {wordAudio ? <DeckAudio filename={wordAudio} mediaUrls={mediaUrls} /> : null}
-                    {wordPicture ? <DeckImage filename={wordPicture} mediaUrls={mediaUrls} /> : null}
-                  </div>
-                ) : null}
-                {!part1HasContent && !hasAnyMedia ? (
-                  <p className="mt-4 text-center text-slate-500 dark:text-slate-400">(Nothing to show)</p>
-                ) : null}
+                ) : (
+                  <p className="text-center text-slate-500 dark:text-slate-400">(No answer text)</p>
+                )}
+                <Part2Dictation resetSignal={cardIndex} referenceParagraphs={dictationReferenceParagraphs} />
               </div>
             </section>
           ) : (
@@ -758,7 +831,7 @@ export function AnkiCardDetailModal({
                 onClick={() => setPart(2)}
                 className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-base font-medium text-white shadow-sm transition hover:bg-indigo-500"
               >
-                Part 2 — Details
+                Part 2 — {isInterview ? 'Answer' : 'Details'}
                 <ArrowRight className="size-5" aria-hidden />
               </button>
             ) : (

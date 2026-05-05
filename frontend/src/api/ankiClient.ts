@@ -27,13 +27,14 @@ export async function importAnkiPlainText(file: File): Promise<AnkiImportResult>
 
 export async function exportAnkiPlainText(cards: Pick<AnkiCard, 'front' | 'back'>[]): Promise<Blob> {
   const url = `${getApiBase()}/api/anki/export`
+  const payload = cards.map(({ front, back }) => ({ front, back }))
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       Accept: 'text/plain',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ cards }),
+    body: JSON.stringify({ cards: payload }),
   })
 
   if (!response.ok) {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronRight, Download, FileUp, Layers, Search, Trash2 } from 'lucide-react'
+import { ChevronRight, Download, FileUp, Layers, MessageSquare, Search, Trash2 } from 'lucide-react'
 import { exportAnkiPlainText, importAnkiPlainText, sampleAnkiDownloadUrl } from '../api/ankiClient'
+import { importInterviewCsvFromFile } from '../lib/interviewCsvImport'
 import { extractApkgMediaUrls, revokeMediaUrls } from '../lib/apkgMedia'
 import type { AnkiCard } from '../types/anki'
 import { AnkiCardDetailModal, baseWordLabel } from './AnkiCardDetailModal'
@@ -12,6 +13,7 @@ type AnkiDeckPanelProps = {
 
 export function AnkiDeckPanel({ cards, onCardsChange }: AnkiDeckPanelProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const interviewCsvInputRef = useRef<HTMLInputElement | null>(null)
   const mediaUrlsRef = useRef<Map<string, string>>(new Map())
   const [importMode, setImportMode] = useState<'append' | 'replace'>('append')
   const [busy, setBusy] = useState(false)
@@ -106,6 +108,36 @@ export function AnkiDeckPanel({ cards, onCardsChange }: AnkiDeckPanelProps) {
   }, [listSearch, selectedIndex, cards])
 
   const onPickFile = useCallback(() => fileInputRef.current?.click(), [])
+  const onPickInterviewCsv = useCallback(() => interviewCsvInputRef.current?.click(), [])
+
+  const onInterviewCsvSelected = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      e.target.value = ''
+      if (!file) return
+      setMessage(null)
+      setBusy(true)
+      try {
+        const result = await importInterviewCsvFromFile(file)
+        const mapped = result.cards
+        if (mapped.length === 0) {
+          setMessage(result.warnings.join(' ') || 'No cards imported.')
+          return
+        }
+        onCardsChange(importMode === 'replace' ? mapped : [...cards, ...mapped])
+        setMessage(
+          result.warnings.length
+            ? `Interview prep: imported ${mapped.length} Q&A card(s). ${result.warnings.join(' ')}`
+            : `Interview prep: imported ${mapped.length} Q&A card(s). Open a card — Part 1 = question, Part 2 = answer.`,
+        )
+      } catch (err) {
+        setMessage(err instanceof Error ? err.message : 'Interview CSV import failed.')
+      } finally {
+        setBusy(false)
+      }
+    },
+    [cards, importMode, onCardsChange],
+  )
 
   const onFileSelected = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -201,8 +233,10 @@ export function AnkiDeckPanel({ cards, onCardsChange }: AnkiDeckPanelProps) {
       <p className="text-sm text-slate-600 dark:text-slate-400">
         Import <strong>.apkg</strong> (reads <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">collection.anki2</code> /{' '}
         <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">collection.anki21</code> inside the ZIP) or plain{' '}
-        <strong>.txt</strong> / <strong>.tsv</strong> / two-column <strong>.csv</strong>. HTML in fields is stripped to text. Add cards from a
-        dictionary result with the button on the card.
+        <strong>.txt</strong> / <strong>.tsv</strong> / two-column <strong>.csv</strong> (server). For <strong>interview Q&amp;A</strong> CSV with
+        headers (Pregunta/Guía, Question/Answer, etc. — same rules as <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">tools/AnkiInterviewExporter</code>
+        ), use <strong>Import interview CSV</strong> so Part 1/2 follow question → answer. HTML in fields is stripped to text. Add dictionary cards with
+        the button on the result card.
       </p>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
@@ -213,6 +247,13 @@ export function AnkiDeckPanel({ cards, onCardsChange }: AnkiDeckPanelProps) {
           className="hidden"
           onChange={(e) => void onFileSelected(e)}
         />
+        <input
+          ref={interviewCsvInputRef}
+          type="file"
+          accept=".csv,text/csv"
+          className="hidden"
+          onChange={(e) => void onInterviewCsvSelected(e)}
+        />
         <button
           type="button"
           onClick={onPickFile}
@@ -221,6 +262,15 @@ export function AnkiDeckPanel({ cards, onCardsChange }: AnkiDeckPanelProps) {
         >
           <FileUp className="size-4" aria-hidden />
           Import file
+        </button>
+        <button
+          type="button"
+          onClick={onPickInterviewCsv}
+          disabled={busy}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-medium text-violet-900 shadow-sm transition hover:bg-violet-100 disabled:opacity-60 dark:border-violet-800 dark:bg-violet-950/50 dark:text-violet-100 dark:hover:bg-violet-900/50"
+        >
+          <MessageSquare className="size-4" aria-hidden />
+          Import interview CSV
         </button>
         <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
           <span>On import:</span>

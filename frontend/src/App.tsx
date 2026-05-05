@@ -45,7 +45,10 @@ function App() {
   }, [query])
 
   const addDefinitionToAnki = useCallback((d: WordDefinitionDto) => {
-    setAnkiCards((prev) => [...prev, { front: d.word, back: buildAnkiBackFromDefinition(d) }])
+    setAnkiCards((prev) => [
+      ...prev,
+      { front: d.word, back: buildAnkiBackFromDefinition(d), kind: 'vocabulary' },
+    ])
   }, [])
 
   return (
