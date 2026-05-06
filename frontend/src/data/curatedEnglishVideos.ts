@@ -125,4 +125,67 @@ export const curatedEnglishVideoTopics: CuratedVideoTopic[] = [
       },
     ],
   },
+  {
+    id: 'context-vocabulary',
+    heading: 'Context vocabulary: travel, finance, philosophy, geography',
+    description:
+      'Learn vocabulary and useful phrases by topic so you can understand content and speak naturally in each context.',
+    picks: [
+      {
+        videoId: 'IMZoaNejsok',
+        title: 'English TRAVEL Vocabulary: Useful Words & Phrases',
+        hint: 'Airport, hotel, transport, directions, and common travel situations.',
+      },
+      {
+        videoId: 'bM9XlH_bCRQ',
+        title: 'English Vocabulary for Personal Finances',
+        hint: 'Budget, debt, savings, payments, and practical finance expressions.',
+      },
+      {
+        videoId: 'cJiLQnMXtxs',
+        title: 'A Very Basic Introduction to Logic and Syllogistic Logic',
+        hint: 'Words for ideas, arguments, ethics, and abstract discussion.',
+      },
+      {
+        videoId: 'fRiE2Aykz3k',
+        title: '5-Minute English: U.S. Geography',
+        hint: 'Countries, regions, landscapes, climate, and map-related terms.',
+      },
+      {
+        videoId: 'QEP4IitYQa4',
+        title: 'ECONOMIC VOCABULARY: Words & Phrases You Should Know',
+        hint: 'Useful phrases to discuss current events and global topics.',
+      },
+      {
+        videoId: 'A0dkcNjsASE',
+        title: 'Full Course | TOEFL, IELTS & PTE Advanced Vocabulary | 400+ words',
+        hint: 'A method to retain new words and turn them into active phrases.',
+      },
+      {
+        videoId: 'oGR7dNydYUk',
+        title: '50 Important English TRAVEL Phrases',
+        hint: 'Extra travel phrases for flights, hotels, and asking for help.',
+      },
+      {
+        videoId: 'A9N7OMk5nXg',
+        title: 'English Travel, Tourism and Vacation Vocabulary and Phrases',
+        hint: 'Travel/tourism terms used in real conversations and services.',
+      },
+      {
+        videoId: 'Hikoq2cmQ-w',
+        title: 'Essential Travel English: Phrases You NEED to Know',
+        hint: 'Long practice lesson with practical phrase sets by scenario.',
+      },
+      {
+        videoId: 'IqYv77tlEGI',
+        title: 'Learn 20 Professional Accounting English Terms',
+        hint: 'Finance/accounting vocabulary for reports, business, and work context.',
+      },
+      {
+        videoId: 'V2j1lT0mc_w',
+        title: 'English Vocabulary about the Economy: 40 words you need to know',
+        hint: 'Core economy terms often heard in global news and analysis.',
+      },
+    ],
+  },
 ]
