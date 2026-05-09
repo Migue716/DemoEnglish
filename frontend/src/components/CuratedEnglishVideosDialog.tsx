@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { ChevronDown, ExternalLink, ListVideo, X } from 'lucide-react'
 import { curatedEnglishVideoTopics } from '../data/curatedEnglishVideos'
+import { YoutubeTranscriptDisclosure } from './YoutubeTranscriptDisclosure'
 
 function youtubeWatchUrl(videoId: string) {
   return `https://www.youtube.com/watch?v=${videoId}`
@@ -50,7 +51,8 @@ export function CuratedEnglishVideosDialog({ open, onClose }: CuratedEnglishVide
                 English video picks
               </h2>
               <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                Curated YouTube links — open each section to see the list.
+                Curated YouTube links — open each section to see the list. Expand “Read captions” to load English
+                subtitles in the app.
               </p>
             </div>
           </div>
@@ -82,7 +84,7 @@ export function CuratedEnglishVideosDialog({ open, onClose }: CuratedEnglishVide
               </summary>
               <ul className="space-y-2 border-t border-slate-200 px-4 py-3 dark:border-slate-700">
                 {topic.picks.map((pick) => (
-                  <li key={`${topic.id}-${pick.videoId}`}>
+                  <li key={`${topic.id}-${pick.videoId}`} className="space-y-2">
                     <a
                       href={youtubeWatchUrl(pick.videoId)}
                       target="_blank"
@@ -97,6 +99,7 @@ export function CuratedEnglishVideosDialog({ open, onClose }: CuratedEnglishVide
                         ) : null}
                       </span>
                     </a>
+                    <YoutubeTranscriptDisclosure videoId={pick.videoId} lang="en" className="bg-slate-50 dark:bg-slate-900/80" />
                   </li>
                 ))}
               </ul>

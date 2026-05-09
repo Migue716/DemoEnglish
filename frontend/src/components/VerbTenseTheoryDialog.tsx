@@ -7,6 +7,7 @@ import {
   verbTenseTheoryFeaturedVideo,
   type TenseTheoryYoutube,
 } from '../data/verbTenseTheory'
+import { YoutubeTranscriptDisclosure } from './YoutubeTranscriptDisclosure'
 
 function youtubeWatchUrl(videoId: string) {
   return `https://www.youtube.com/watch?v=${videoId}`
@@ -52,6 +53,12 @@ function TenseTheoryYoutubeDetails({
           Open on YouTube
           <ExternalLink className="size-3.5 shrink-0 opacity-80" aria-hidden />
         </a>
+        <YoutubeTranscriptDisclosure
+          videoId={video.videoId}
+          lang="en"
+          summaryLabel="Read captions"
+          className="mt-2 border-slate-200 dark:border-slate-600"
+        />
       </div>
     </details>
   )
