@@ -110,6 +110,88 @@ export function AnkiDeckPanel({ cards, onCardsChange }: AnkiDeckPanelProps) {
   const onPickFile = useCallback(() => fileInputRef.current?.click(), [])
   const onPickInterviewCsv = useCallback(() => interviewCsvInputRef.current?.click(), [])
 
+  const applyImportFromFile = useCallback(
+    async (file: File, mode: 'append' | 'replace'): Promise<string> => {
+      const result = await importAnkiPlainText(file)
+      const mapped: AnkiCard[] = result.cards.map((c) => ({
+        front: c.front,
+        back: c.back,
+        sourceLine: c.sourceLine,
+      }))
+      onCardsChange(mode === 'replace' ? mapped : [...cards, ...mapped])
+
+      const isApkg = file.name.toLowerCase().endsWith('.apkg')
+      if (mode === 'replace') {
+        setMediaUrls((prev) => {
+          revokeMediaUrls(prev)
+          return new Map()
+        })
+      }
+      if (isApkg) {
+        const extracted = await extractApkgMediaUrls(file)
+        setMediaUrls((prev) => {
+          const next = mode === 'replace' ? new Map<string, string>() : new Map(prev)
+          for (const [name, url] of extracted) {
+            const old = next.get(name)
+            if (old) URL.revokeObjectURL(old)
+            next.set(name, url)
+          }
+          return next
+        })
+      }
+
+      return result.warnings.length
+        ? `Imported ${mapped.length} card(s). ${result.warnings.join(' ')}`
+        : `Imported ${mapped.length} card(s).`
+    },
+    [cards, onCardsChange],
+  )
+
+  const preloadApkgUrl = import.meta.env.VITE_PRELOAD_APKG_URL?.trim()
+  const preloadRan = useRef(false)
+
+  useEffect(() => {
+    if (!preloadApkgUrl || preloadRan.current) return
+    preloadRan.current = true
+    void (async () => {
+      setBusy(true)
+      setMessage(null)
+      try {
+        const res = await fetch(preloadApkgUrl)
+        if (!res.ok) {
+          throw new Error(
+            `Preload failed (${res.status}). Check DEMOENGLISH_PRELOAD_APKG_PATH and that you use vite dev/preview.`,
+          )
+        }
+        const blob = await res.blob()
+        const head = new Uint8Array(await blob.slice(0, 4).arrayBuffer())
+        const looksZip = blob.size >= 22 && head[0] === 0x50 && head[1] === 0x4b
+        if (!looksZip) {
+          const preview =
+            blob.size > 0 && blob.size < 4000 ? (await blob.text()).replace(/\s+/g, ' ').slice(0, 200) : ''
+          throw new Error(
+            `Preload response is not a valid .apkg (expected ZIP “PK…” header). ${preview ? `Body starts with: ${preview}` : ''} Set DEMOENGLISH_PRELOAD_APKG_PATH in frontend/.env.development and restart \`npm run dev\`.`,
+          )
+        }
+        const dispo = res.headers.get('Content-Disposition')
+        const fromHeader = dispo?.match(/filename="([^"]+)"/)?.[1]
+        const fileName = fromHeader?.trim() || 'preloaded.apkg'
+        const file = new File(
+          [blob],
+          fileName.toLowerCase().endsWith('.apkg') ? fileName : `${fileName}.apkg`,
+          { type: 'application/octet-stream' },
+        )
+        const msg = await applyImportFromFile(file, 'replace')
+        setMessage(`${msg} Preloaded from local disk (dev).`)
+      } catch (err) {
+        preloadRan.current = false
+        setMessage(err instanceof Error ? err.message : 'Preload failed.')
+      } finally {
+        setBusy(false)
+      }
+    })()
+  }, [preloadApkgUrl, applyImportFromFile])
+
   const onInterviewCsvSelected = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
@@ -147,46 +229,15 @@ export function AnkiDeckPanel({ cards, onCardsChange }: AnkiDeckPanelProps) {
       setMessage(null)
       setBusy(true)
       try {
-        const result = await importAnkiPlainText(file)
-        const mapped: AnkiCard[] = result.cards.map((c) => ({
-          front: c.front,
-          back: c.back,
-          sourceLine: c.sourceLine,
-        }))
-        onCardsChange(importMode === 'replace' ? mapped : [...cards, ...mapped])
-
-        const isApkg = file.name.toLowerCase().endsWith('.apkg')
-        if (importMode === 'replace') {
-          setMediaUrls((prev) => {
-            revokeMediaUrls(prev)
-            return new Map()
-          })
-        }
-        if (isApkg) {
-          const extracted = await extractApkgMediaUrls(file)
-          setMediaUrls((prev) => {
-            const next = importMode === 'replace' ? new Map<string, string>() : new Map(prev)
-            for (const [name, url] of extracted) {
-              const old = next.get(name)
-              if (old) URL.revokeObjectURL(old)
-              next.set(name, url)
-            }
-            return next
-          })
-        }
-
-        setMessage(
-          result.warnings.length
-            ? `Imported ${mapped.length} card(s). ${result.warnings.join(' ')}`
-            : `Imported ${mapped.length} card(s).`,
-        )
+        const msg = await applyImportFromFile(file, importMode)
+        setMessage(msg)
       } catch (err) {
         setMessage(err instanceof Error ? err.message : 'Import failed.')
       } finally {
         setBusy(false)
       }
     },
-    [cards, importMode, onCardsChange],
+    [applyImportFromFile, importMode],
   )
 
   const onExport = useCallback(async () => {

@@ -17,12 +17,32 @@ function mimeForFilename(filename: string): string {
   return 'application/octet-stream'
 }
 
+async function fileStartsWithZipMagic(file: File): Promise<boolean> {
+  if (file.size < 4) return false
+  const b = new Uint8Array(await file.slice(0, 4).arrayBuffer())
+  return b[0] === 0x50 && b[1] === 0x4b // "PK" — ZIP / .apkg
+}
+
 /** Maps logical media filenames (as in `[sound:…]`) to object URLs for blobs from the .apkg zip. */
 export async function extractApkgMediaUrls(apkgFile: File): Promise<Map<string, string>> {
   const urls = new Map<string, string>()
   if (!apkgFile.name.toLowerCase().endsWith('.apkg')) return urls
 
-  const zip = await JSZip.loadAsync(apkgFile)
+  if (!(await fileStartsWithZipMagic(apkgFile))) {
+    throw new Error(
+      'This file is not a valid .apkg ZIP (missing PK header). The download may be an HTML/text error instead of the package — check Vite preload (DEMOENGLISH_PRELOAD_APKG_PATH) or your network.',
+    )
+  }
+
+  let zip: Awaited<ReturnType<typeof JSZip.loadAsync>>
+  try {
+    zip = await JSZip.loadAsync(apkgFile)
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e)
+    throw new Error(
+      `Could not open as ZIP (.apkg): ${detail}. If you use dev preload, ensure DEMOENGLISH_PRELOAD_APKG_PATH points to a real file and run Vite from the frontend folder (or keep .env next to vite.config.ts).`,
+    )
+  }
 
   let mediaEntry = zip.file('media')
   if (!mediaEntry) {
