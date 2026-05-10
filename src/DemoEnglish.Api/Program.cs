@@ -3,10 +3,17 @@ using System.Text.Json.Serialization;
 using DemoEnglish.Api;
 using DemoEnglish.Infrastructure;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Server.IIS;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// `http://0.0.0.0:…` in launchSettings can still end up loopback-only on some hosts; `*` binds all interfaces (LAN / iPhone).
+if (builder.Environment.IsDevelopment())
+{
+    builder.WebHost.UseUrls("http://*:5183", "https://*:7282");
+}
 
 builder.WebHost.ConfigureKestrel(options =>
 {
@@ -43,9 +50,15 @@ builder.Services.AddCors(options =>
         "Frontend",
         policy =>
         {
-            policy.WithOrigins(allowedOrigins)
-                .AllowAnyHeader()
-                .AllowAnyMethod();
+            if (builder.Environment.IsDevelopment())
+            {
+                // Phone / other PCs use http://<LAN-IP>:5173 — origins are not localhost.
+                policy.SetIsOriginAllowed(_ => true).AllowAnyHeader().AllowAnyMethod();
+            }
+            else
+            {
+                policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod();
+            }
         });
 });
 
@@ -61,7 +74,18 @@ builder.Services.Configure<IISServerOptions>(options =>
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
+
 var app = builder.Build();
+
+// Helps Swagger UI (large JS/CSS) over LAN / Wi‑Fi to phones.
+app.UseResponseCompression();
+
+// CORS before Swagger so browser / Swagger UI requests are not blocked by middleware order.
+app.UseCors("Frontend");
 
 if (app.Environment.IsDevelopment())
 {
@@ -70,11 +94,18 @@ if (app.Environment.IsDevelopment())
     {
         options.SwaggerEndpoint("/swagger/v1/swagger.json", "DemoEnglish API v1");
         options.RoutePrefix = "swagger";
+        // Swashbuckle omits null JSON properties; Swagger UI then defaults to the online validator,
+        // which can hang “Loading…” on phones with slow or flaky internet. Empty string disables it.
+        options.ConfigObject.ValidatorUrl = string.Empty;
     });
 }
 
-app.UseHttpsRedirection();
-app.UseCors("Frontend");
+// In Development, LAN clients use http://<PC>:5183; HTTPS redirect breaks phones (dev cert).
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseAuthorization();
 app.MapControllers();
 

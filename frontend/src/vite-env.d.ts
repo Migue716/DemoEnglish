@@ -2,6 +2,8 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_BASE_URL?: string
+  /** HTTP API port when using LAN auto-origin on iOS (default 5183). */
+  readonly VITE_LAN_API_HTTP_PORT?: string
   /** Dev/preview: fetch this URL on load to import an .apkg (served by Vite from `DEMOENGLISH_PRELOAD_APKG_PATH`). */
   readonly VITE_PRELOAD_APKG_URL?: string
   /** Max width of Anki card modal (CSS), e.g. `min(80rem, 96vw)` */

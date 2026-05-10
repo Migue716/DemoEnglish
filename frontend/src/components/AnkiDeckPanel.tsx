@@ -107,9 +107,6 @@ export function AnkiDeckPanel({ cards, onCardsChange }: AnkiDeckPanelProps) {
     if (!match) setSelectedIndex(null)
   }, [listSearch, selectedIndex, cards])
 
-  const onPickFile = useCallback(() => fileInputRef.current?.click(), [])
-  const onPickInterviewCsv = useCallback(() => interviewCsvInputRef.current?.click(), [])
-
   const applyImportFromFile = useCallback(
     async (file: File, mode: 'append' | 'replace'): Promise<string> => {
       const result = await importAnkiPlainText(file)
@@ -154,7 +151,8 @@ export function AnkiDeckPanel({ cards, onCardsChange }: AnkiDeckPanelProps) {
     if (!preloadApkgUrl || preloadRan.current) return
     preloadRan.current = true
     void (async () => {
-      setBusy(true)
+      // Do not toggle `busy` here — preload can take a long time on Wi‑Fi/phone and would
+      // block manual Anki import/export until it finishes or fails.
       setMessage(null)
       try {
         const res = await fetch(preloadApkgUrl)
@@ -186,8 +184,6 @@ export function AnkiDeckPanel({ cards, onCardsChange }: AnkiDeckPanelProps) {
       } catch (err) {
         preloadRan.current = false
         setMessage(err instanceof Error ? err.message : 'Preload failed.')
-      } finally {
-        setBusy(false)
       }
     })()
   }, [preloadApkgUrl, applyImportFromFile])
@@ -291,38 +287,42 @@ export function AnkiDeckPanel({ cards, onCardsChange }: AnkiDeckPanelProps) {
       </p>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".txt,.tsv,.csv,.apkg,text/plain,application/zip"
-          className="hidden"
-          onChange={(e) => void onFileSelected(e)}
-        />
-        <input
-          ref={interviewCsvInputRef}
-          type="file"
-          accept=".csv,text/csv"
-          className="hidden"
-          onChange={(e) => void onInterviewCsvSelected(e)}
-        />
-        <button
-          type="button"
-          onClick={onPickFile}
-          disabled={busy}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+        {/*
+          iOS Safari: avoid `display:none` + programmatic input.click() — the picker may not open
+          or files look unselectable. Use a native <label> + visually hidden input (sr-only), and
+          avoid a tight `accept` filter so .apkg shows normally in Files.
+        */}
+        <label
+          className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 ${
+            busy ? 'pointer-events-none opacity-60' : ''
+          }`}
         >
-          <FileUp className="size-4" aria-hidden />
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="sr-only"
+            disabled={busy}
+            onChange={(e) => void onFileSelected(e)}
+          />
+          <FileUp className="size-4 shrink-0" aria-hidden />
           Import file
-        </button>
-        <button
-          type="button"
-          onClick={onPickInterviewCsv}
-          disabled={busy}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-medium text-violet-900 shadow-sm transition hover:bg-violet-100 disabled:opacity-60 dark:border-violet-800 dark:bg-violet-950/50 dark:text-violet-100 dark:hover:bg-violet-900/50"
+        </label>
+        <label
+          className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-medium text-violet-900 shadow-sm transition hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/50 dark:text-violet-100 dark:hover:bg-violet-900/50 ${
+            busy ? 'pointer-events-none opacity-60' : ''
+          }`}
         >
-          <MessageSquare className="size-4" aria-hidden />
+          <input
+            ref={interviewCsvInputRef}
+            type="file"
+            accept=".csv"
+            className="sr-only"
+            disabled={busy}
+            onChange={(e) => void onInterviewCsvSelected(e)}
+          />
+          <MessageSquare className="size-4 shrink-0" aria-hidden />
           Import interview CSV
-        </button>
+        </label>
         <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
           <span>On import:</span>
           <select

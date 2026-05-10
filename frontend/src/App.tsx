@@ -41,7 +41,6 @@ function App() {
   const [tenseTheoryOpen, setTenseTheoryOpen] = useState(false)
   const [curatedVideosOpen, setCuratedVideosOpen] = useState(false)
   const [verbListsOpen, setVerbListsOpen] = useState(false)
-
   const runSearch = useCallback(async () => {
     const trimmedQuery = query.trim()
     setError(null)
