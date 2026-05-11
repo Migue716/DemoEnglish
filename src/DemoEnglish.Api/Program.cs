@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DemoEnglish.Api;
+using DemoEnglish.Api.Services;
 using DemoEnglish.Infrastructure;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.ResponseCompression;
@@ -71,6 +72,15 @@ builder.Services.Configure<IISServerOptions>(options =>
 {
     options.MaxRequestBodySize = UploadLimits.MaxMultipartBytes;
 });
+
+builder.Services.Configure<OpenAiOptions>(builder.Configuration.GetSection(OpenAiOptions.SectionName));
+builder.Services.AddHttpClient(
+    "OpenAI",
+    client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(90);
+    });
+builder.Services.AddScoped<OpenAiInterviewCoach>();
 
 builder.Services.AddInfrastructure(builder.Configuration);
 

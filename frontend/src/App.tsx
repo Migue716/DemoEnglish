@@ -9,6 +9,7 @@ import { VerbTenseTheoryDialog, TenseTheoryMenuButton } from './components/VerbT
 import { VerbListsDialog, VerbListsMenuButton } from './components/VerbListsDialog'
 import { DefinitionCard } from './components/DefinitionCard'
 import { SearchBar } from './components/SearchBar'
+import { InterviewPracticeMenuButton, InterviewPracticeScreen } from './components/InterviewPracticeScreen'
 import { SettingsDialog, SettingsMenuButton } from './components/SettingsDialog'
 import { DictionaryRequestError, type WordDefinitionDto } from './types/dictionary'
 import type { AnkiCard } from './types/anki'
@@ -41,6 +42,7 @@ function App() {
   const [tenseTheoryOpen, setTenseTheoryOpen] = useState(false)
   const [curatedVideosOpen, setCuratedVideosOpen] = useState(false)
   const [verbListsOpen, setVerbListsOpen] = useState(false)
+  const [interviewOpen, setInterviewOpen] = useState(false)
   const runSearch = useCallback(async () => {
     const trimmedQuery = query.trim()
     setError(null)
@@ -118,6 +120,7 @@ function App() {
               <TenseTheoryMenuButton open={tenseTheoryOpen} onClick={() => setTenseTheoryOpen(true)} />
               <CuratedVideosMenuButton open={curatedVideosOpen} onClick={() => setCuratedVideosOpen(true)} />
               <VerbListsMenuButton open={verbListsOpen} onClick={() => setVerbListsOpen(true)} />
+              <InterviewPracticeMenuButton open={interviewOpen} onClick={() => setInterviewOpen(true)} />
               <SettingsMenuButton open={settingsOpen} onClick={() => setSettingsOpen(true)} />
             </div>
           </div>
@@ -162,6 +165,7 @@ function App() {
       <CuratedEnglishVideosDialog open={curatedVideosOpen} onClose={() => setCuratedVideosOpen(false)} />
       <VerbListsDialog open={verbListsOpen} onClose={() => setVerbListsOpen(false)} />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      {interviewOpen ? <InterviewPracticeScreen onClose={() => setInterviewOpen(false)} /> : null}
     </div>
   )
 }
